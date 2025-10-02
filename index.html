@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3D Zeitleiste (invertiert)</title>
+    <title>3D Zeitleiste (mit externen Logos)</title>
     <!-- Tailwind CSS (für das UI-Overlay) -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -27,7 +27,7 @@
     <!-- UI-Overlay für die aktuelle Jahresanzeige -->
     <div id="ui-overlay" class="fixed top-4 left-1/2 transform -translate-x-1/2 p-4 bg-black bg-opacity-70 rounded-xl shadow-2xl border border-white/30 z-10">
         <h1 class="text-xl font-bold text-primary text-white">Aktuelles Jahr: <span id="current-year" class="text-3xl">2025</span></h1>
-        <p class="text-xs text-secondary mt-1 text-center text-gray-400">Scrollen Sie mit dem Mausrad, um sich in der Zeit zu bewegen.</p>
+        <p class="text-xs text-secondary mt-1 text-center text-gray-400">Scrollen (Mausrad), Farbe ändern (Leertaste)</p>
     </div>
 
     <canvas id="timeline-canvas"></canvas>
@@ -39,11 +39,11 @@
 
         // --- Zeit- und Skalenkonstanten ---
         const MIN_YEAR = 1984;
-        const VISUAL_MAX_YEAR = 2025; // Letztes sichtbares Jahr
+        const VISUAL_MAX_YEAR = new Date().getFullYear(); // Dynamisches Endjahr
         const Z_DISTANCE = 4000;
         const Z_SCALE = Z_DISTANCE / (VISUAL_MAX_YEAR - MIN_YEAR);
 
-        // --- Hilfsfunktionen für Zeit/Position (KORRIGIERT: 2025 nah, 1984 fern) ---
+        // --- Hilfsfunktionen für Zeit/Position ---
         function yearToZ(year) {
             const clampedYear = Math.max(MIN_YEAR, year);
             return (VISUAL_MAX_YEAR - clampedYear) * Z_SCALE;
@@ -60,6 +60,9 @@
         const camera = { x: 0, y: 0, z: START_Z };
         let targetZ = START_Z;
         let focalLength;
+
+        // --- Statusvariablen ---
+        let isColorMode = false;
 
         // --- Responsiveness & Geometrie-Dimensionen ---
         let sideLimit = 100;
@@ -82,7 +85,7 @@
         // --- 3D zu 2D Projektionsfunktion ---
         function project(point) {
             const relativeZ = point.z - camera.z;
-            if (relativeZ <= 0.1) return null; // Punkte müssen VOR der Kamera sein (positives Z)
+            if (relativeZ <= 0.1) return null;
 
             const scale = focalLength / relativeZ;
 
@@ -92,72 +95,81 @@
         }
 
         // --- Initialisierung ---
-        function init() {
-            onWindowResize();
+        async function init() {
+            // UI mit dem korrekten Startjahr aktualisieren
+            document.getElementById('current-year').textContent = VISUAL_MAX_YEAR;
+
+            await loadLogoData();
             generateTimelineData();
-            generateLogoData();
+            onWindowResize(); 
             window.addEventListener('resize', onWindowResize, false);
             window.addEventListener('wheel', onMouseWheel, false);
+            window.addEventListener('keydown', handleKeyPress);
             animate();
         }
         
-        // --- Geometrie-Daten generieren ---
+        // --- Ladefunktion für JSON und SVGs ---
+        async function loadLogoData() {
+            try {
+                const response = await fetch('logos.json');
+                const logoDefinitions = await response.json();
+
+                const imagePromises = logoDefinitions.map(def => {
+                    const bwPromise = new Promise((resolve, reject) => {
+                        const img = new Image();
+                        img.onload = () => resolve(img);
+                        img.onerror = reject;
+                        img.src = def.logoBW;
+                    });
+                    const colorPromise = new Promise((resolve, reject) => {
+                        const img = new Image();
+                        img.onload = () => resolve(img);
+                        img.onerror = reject;
+                        img.src = def.logoColor;
+                    });
+
+                    return Promise.all([bwPromise, colorPromise]).then(([imageBW, imageColor]) => {
+                         const zPos = yearToZ(def.year);
+                         const logoObject = {
+                            type: 'logo',
+                            z: zPos,
+                            year: def.year,
+                            size: 30, 
+                            relX: def.relX,
+                            relY: def.relY,
+                            label: def.name,
+                            description: def.description,
+                            imageBW: imageBW,
+                            imageColor: imageColor,
+                            currentImage: imageBW // Standardmäßig SW-Logo
+                         };
+                         logos.push(logoObject);
+                         renderableObjects.push(logoObject);
+                    });
+                });
+
+                await Promise.all(imagePromises);
+                console.log('Alle Logos erfolgreich geladen.');
+
+            } catch (error) {
+                console.error('Fehler beim Laden der Logo-Daten:', error);
+            }
+        }
+
+        // --- Geometrie-Daten für Tunnel generieren ---
         function generateTimelineData() {
             const totalVisibleYears = VISUAL_MAX_YEAR - MIN_YEAR;
             for (let i = 0; i <= totalVisibleYears; i++) {
                 const year = MIN_YEAR + i;
                 const zPos = yearToZ(year);
                 
-                const lineSet = {
-                    type: 'lines',
-                    z: zPos,
-                    year: year,
-                    points: [
-                        { x: -sideLimit, y: wallHeight / 2, z: zPos }, { x: sideLimit, y: wallHeight / 2, z: zPos },
-                        { x: -sideLimit, y: -wallHeight / 2, z: zPos }, { x: sideLimit, y: -wallHeight / 2, z: zPos },
-                        { x: -sideLimit, y: -wallHeight / 2, z: zPos }, { x: -sideLimit, y: wallHeight / 2, z: zPos },
-                        { x: sideLimit, y: -wallHeight / 2, z: zPos }, { x: sideLimit, y: wallHeight / 2, z: zPos }
-                    ]
-                };
+                const lineSet = { type: 'lines', z: zPos, year: year };
                 depthLines.push(lineSet);
                 renderableObjects.push(lineSet);
 
-                const yearLabel = {
-                    type: 'text',
-                    z: zPos,
-                    year: year,
-                    x: 0, 
-                    y: 0,
-                    text: String(year),
-                    baseFontSize: 4,
-                    color: '#888888'
-                };
+                const yearLabel = { type: 'text', z: zPos, year: year, text: String(year), baseFontSize: 4, color: '#888888' };
                 depthLines.push(yearLabel);
                 renderableObjects.push(yearLabel);
-            }
-        }
-        
-        function generateLogoData() {
-            const totalVisibleYears = VISUAL_MAX_YEAR - MIN_YEAR;
-            for (let i = 1; i <= 40; i++) {
-                const year = MIN_YEAR + Math.random() * totalVisibleYears;
-                const zPos = yearToZ(year);
-                const size = Math.random() * 15 + 8;
-                const relX = Math.random() * 2 - 1;
-                const relY = Math.random();
-
-                const logoObject = {
-                    type: 'logo',
-                    z: zPos,
-                    year: year,
-                    size: size,
-                    relX: relX,
-                    relY: relY,
-                    label: `LOGO_${String(i).padStart(2, '0')}`,
-                    color: '#FFFFFF'
-                };
-                logos.push(logoObject);
-                renderableObjects.push(logoObject);
             }
         }
         
@@ -183,7 +195,6 @@
 
         function draw() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            // Sortierung von fern (großes Z) nach nah (kleines Z)
             renderableObjects.sort((a, b) => b.z - a.z);
 
             const cameraYear = zToYear(camera.z);
@@ -209,10 +220,7 @@
                     for(let i = 0; i < obj.points.length; i += 2) {
                         const p1 = project(obj.points[i]);
                         const p2 = project(obj.points[i+1]);
-                        if(p1 && p2) {
-                            ctx.moveTo(p1.x, p1.y);
-                            ctx.lineTo(p2.x, p2.y);
-                        }
+                        if(p1 && p2) { ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); }
                     }
                     ctx.stroke();
                 } else if (obj.type === 'text') {
@@ -229,25 +237,35 @@
                     const y = (obj.relY * wallHeight * 0.9) - wallHeight / 2;
                     const pos = project({ x, y, z: obj.z });
                     
-                    if (pos) {
+                    if (pos && obj.currentImage) {
                         const size = obj.size * pos.scale;
-                        ctx.fillStyle = obj.color;
-                        ctx.fillRect(pos.x - size / 2, pos.y - size / 2, size, size);
+                        ctx.drawImage(obj.currentImage, pos.x - size / 2, pos.y - size / 2, size, size);
 
+                        ctx.fillStyle = '#FFFFFF';
                         ctx.font = `${8 * pos.scale}px Inter`;
                         ctx.textAlign = 'center';
                         ctx.textBaseline = 'middle';
-                        ctx.fillText(obj.label, pos.x, pos.y - size/2 - 5 * pos.scale);
+                        ctx.fillText(obj.label, pos.x, pos.y + size / 2 + (10 * pos.scale));
                     }
                 }
             });
             ctx.globalAlpha = 1.0;
         }
 
+        // --- Event Handlers ---
+        function handleKeyPress(event) {
+            if (event.code === 'Space') {
+                event.preventDefault();
+                isColorMode = !isColorMode;
+                logos.forEach(logo => {
+                    logo.currentImage = isColorMode ? logo.imageColor : logo.imageBW;
+                });
+            }
+        }
+
         function onMouseWheel(event) {
             const scrollAmount = event.deltaY * SCROLL_SENSITIVITY;
             targetZ += scrollAmount;
-            // Begrenzt die Kameraposition
             targetZ = Math.max(START_Z, Math.min(END_Z, targetZ));
         }
 
