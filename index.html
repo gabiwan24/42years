@@ -120,11 +120,15 @@
         async function loadLogoData() {
             let logoDefinitions;
             try {
-                const response = await fetch('logos.json');
+                // KORREKTUR: Pfad zur JSON-Datei angepasst
+                const response = await fetch('../logos.json');
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
                 logoDefinitions = await response.json();
+                if (!logoDefinitions || logoDefinitions.length === 0) {
+                    throw new Error('logos.json ist leer oder ungültig.');
+                }
                 console.log('logos.json erfolgreich geladen.');
             } catch (error) {
                 console.warn('Laden von logos.json fehlgeschlagen, verwende Fallback-Daten.', error);
