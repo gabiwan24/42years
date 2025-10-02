@@ -63,6 +63,8 @@
 
         // --- Statusvariablen ---
         let isColorMode = false;
+        let mousePos = { x: 0, y: 0 };
+        let hoveredLogo = null;
 
         // --- Responsiveness & Geometrie-Dimensionen ---
         let sideLimit = 100;
@@ -113,30 +115,24 @@
             window.addEventListener('resize', onWindowResize, false);
             window.addEventListener('wheel', onMouseWheel, false);
             window.addEventListener('keydown', handleKeyPress);
+            canvas.addEventListener('mousemove', handleMouseMove);
             animate();
         }
         
         // --- Ladefunktion für JSON und SVGs ---
         async function loadLogoData() {
             let logoDefinitions;
-            
-            // KORREKTUR: Dynamischen Basispfad für GitHub Pages erstellen
             let basePath = window.location.href.substring(0, window.location.href.lastIndexOf('/') + 1);
 
             try {
                 const response = await fetch(`${basePath}logos.json`);
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
+                if (!response.ok) { throw new Error(`HTTP error! status: ${response.status}`); }
                 logoDefinitions = await response.json();
-                if (!logoDefinitions || logoDefinitions.length === 0) {
-                    throw new Error('logos.json ist leer oder ungültig.');
-                }
+                if (!logoDefinitions || logoDefinitions.length === 0) { throw new Error('logos.json ist leer oder ungültig.');}
                 console.log('logos.json erfolgreich geladen.');
             } catch (error) {
                 console.warn(`Laden von '${basePath}logos.json' fehlgeschlagen, verwende Fallback-Daten.`, error);
                 logoDefinitions = fallbackLogoData;
-                // Wenn Fallback verwendet wird, ist der basePath irrelevant
                 basePath = ''; 
             }
 
@@ -146,7 +142,6 @@
                         const img = new Image();
                         img.onload = () => resolve(img);
                         img.onerror = (e) => reject(`Fehler beim Laden von ${basePath}${def.logoBW}: ${e}`);
-                        // Benutze den Basispfad, außer für absolute URLs im Fallback
                         img.src = def.logoBW.startsWith('http') ? def.logoBW : `${basePath}${def.logoBW}`;
                     });
                     const colorPromise = new Promise((resolve, reject) => {
@@ -219,6 +214,7 @@
             renderableObjects.sort((a, b) => b.z - a.z);
 
             const cameraYear = zToYear(camera.z);
+            hoveredLogo = null; // Reset hovered logo each frame
 
             renderableObjects.forEach(obj => {
                 const relativeZ = obj.z - camera.z;
@@ -259,19 +255,84 @@
                     const pos = project({ x, y, z: obj.z });
                     
                     if (pos && obj.currentImage) {
-                        const size = obj.size * pos.scale;
-                        ctx.drawImage(obj.currentImage, pos.x - size / 2, pos.y - size / 2, size, size);
+                        const baseSize = obj.size * pos.scale;
+                        const aspect = obj.currentImage.naturalWidth / obj.currentImage.naturalHeight;
+                        let w, h;
+                        if (aspect > 1) { w = baseSize; h = baseSize / aspect; } 
+                        else { h = baseSize; w = baseSize * aspect; }
 
-                        ctx.fillStyle = '#FFFFFF';
-                        ctx.font = `${8 * pos.scale}px Inter`;
-                        ctx.textAlign = 'center';
-                        ctx.textBaseline = 'middle';
-                        ctx.fillText(obj.label, pos.x, pos.y + size / 2 + (10 * pos.scale));
+                        const left = pos.x - w / 2;
+                        const top = pos.y - h / 2;
+
+                        ctx.drawImage(obj.currentImage, left, top, w, h);
+
+                        // Hover detection
+                        if (mousePos.x >= left && mousePos.x <= left + w && mousePos.y >= top && mousePos.y <= top + h) {
+                            hoveredLogo = obj;
+                        }
                     }
                 }
             });
+
+            // Draw tooltip if a logo is hovered
+            if (hoveredLogo) {
+                drawTooltip(hoveredLogo.description, mousePos.x, mousePos.y);
+            }
+
             ctx.globalAlpha = 1.0;
         }
+
+        function drawTooltip(text, x, y) {
+            const maxWidth = 200;
+            const lineHeight = 18;
+            const padding = 10;
+            ctx.font = '12px Inter';
+            
+            const lines = [];
+            let currentLine = '';
+            const words = text.split(' ');
+
+            for (const word of words) {
+                const testLine = currentLine + word + ' ';
+                const metrics = ctx.measureText(testLine);
+                if (metrics.width > maxWidth && currentLine !== '') {
+                    lines.push(currentLine.trim());
+                    currentLine = word + ' ';
+                } else {
+                    currentLine = testLine;
+                }
+            }
+            lines.push(currentLine.trim());
+
+            const tooltipHeight = lines.length * lineHeight + padding * 2;
+            const textWidths = lines.map(line => ctx.measureText(line).width);
+            const tooltipWidth = Math.max(...textWidths) + padding * 2;
+
+            let tooltipX = x + 15;
+            let tooltipY = y + 15;
+            if (tooltipX + tooltipWidth > canvas.width) {
+                tooltipX = x - tooltipWidth - 15;
+            }
+            if (tooltipY + tooltipHeight > canvas.height) {
+                tooltipY = y - tooltipHeight - 15;
+            }
+            
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+            ctx.strokeStyle = '#FFFFFF';
+            ctx.lineWidth = 0.5;
+            ctx.beginPath();
+            ctx.rect(tooltipX, tooltipY, tooltipWidth, tooltipHeight);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = '#FFFFFF';
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'top';
+            lines.forEach((line, index) => {
+                ctx.fillText(line, tooltipX + padding, tooltipY + padding + index * lineHeight);
+            });
+        }
+
 
         // --- Event Handlers ---
         function handleKeyPress(event) {
@@ -282,6 +343,12 @@
                     logo.currentImage = isColorMode ? logo.imageColor : logo.imageBW;
                 });
             }
+        }
+        
+        function handleMouseMove(event) {
+            const rect = canvas.getBoundingClientRect();
+            mousePos.x = event.clientX - rect.left;
+            mousePos.y = event.clientY - rect.top;
         }
 
         function onMouseWheel(event) {
