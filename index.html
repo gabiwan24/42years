@@ -120,8 +120,8 @@
         async function loadLogoData() {
             let logoDefinitions;
             try {
-                // KORREKTUR: Pfad zur JSON-Datei angepasst
-                const response = await fetch('../logos.json');
+                // KORREKTUR: Pfad explizit als relativ zum aktuellen Verzeichnis definiert
+                const response = await fetch('./logos.json');
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
