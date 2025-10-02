@@ -82,6 +82,15 @@
         const logos = [];
         const renderableObjects = [];
         
+        // --- Fallback-Daten, falls logos.json nicht geladen werden kann ---
+        const fallbackLogoData = [
+            { "year": 1988, "name": "Fiktives Projekt A", "description": "Platzhalter A", "logoColor": "https://placehold.co/100x100/FF0000/FFFFFF?text=A", "logoBW": "https://placehold.co/100x100/CCCCCC/000000?text=A", "relX": 0.6, "relY": 0.6 },
+            { "year": 1995, "name": "Fiktives Projekt B", "description": "Platzhalter B", "logoColor": "https://placehold.co/100x100/00FF00/FFFFFF?text=B", "logoBW": "https://placehold.co/100x100/CCCCCC/000000?text=B", "relX": -0.6, "relY": 0.4 },
+            { "year": 2002, "name": "Fiktives Projekt C", "description": "Platzhalter C", "logoColor": "https://placehold.co/100x100/0000FF/FFFFFF?text=C", "logoBW": "https://placehold.co/100x100/CCCCCC/000000?text=C", "relX": 0.0, "relY": 0.7 },
+            { "year": 2010, "name": "Fiktives Projekt D", "description": "Platzhalter D", "logoColor": "https://placehold.co/100x100/FFFF00/000000?text=D", "logoBW": "https://placehold.co/100x100/CCCCCC/000000?text=D", "relX": 0.7, "relY": 0.2 },
+            { "year": 2018, "name": "Fiktives Projekt E", "description": "Platzhalter E", "logoColor": "https://placehold.co/100x100/FF00FF/FFFFFF?text=E", "logoBW": "https://placehold.co/100x100/CCCCCC/000000?text=E", "relX": -0.7, "relY": 0.5 }
+        ];
+
         // --- 3D zu 2D Projektionsfunktion ---
         function project(point) {
             const relativeZ = point.z - camera.z;
@@ -96,7 +105,6 @@
 
         // --- Initialisierung ---
         async function init() {
-            // UI mit dem korrekten Startjahr aktualisieren
             document.getElementById('current-year').textContent = VISUAL_MAX_YEAR;
 
             await loadLogoData();
@@ -110,38 +118,41 @@
         
         // --- Ladefunktion für JSON und SVGs ---
         async function loadLogoData() {
+            let logoDefinitions;
             try {
                 const response = await fetch('logos.json');
-                const logoDefinitions = await response.json();
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                logoDefinitions = await response.json();
+                console.log('logos.json erfolgreich geladen.');
+            } catch (error) {
+                console.warn('Laden von logos.json fehlgeschlagen, verwende Fallback-Daten.', error);
+                logoDefinitions = fallbackLogoData;
+            }
 
+            try {
                 const imagePromises = logoDefinitions.map(def => {
                     const bwPromise = new Promise((resolve, reject) => {
                         const img = new Image();
                         img.onload = () => resolve(img);
-                        img.onerror = reject;
+                        img.onerror = (e) => reject(`Fehler beim Laden von ${def.logoBW}: ${e}`);
                         img.src = def.logoBW;
                     });
                     const colorPromise = new Promise((resolve, reject) => {
                         const img = new Image();
                         img.onload = () => resolve(img);
-                        img.onerror = reject;
+                        img.onerror = (e) => reject(`Fehler beim Laden von ${def.logoColor}: ${e}`);
                         img.src = def.logoColor;
                     });
 
                     return Promise.all([bwPromise, colorPromise]).then(([imageBW, imageColor]) => {
                          const zPos = yearToZ(def.year);
                          const logoObject = {
-                            type: 'logo',
-                            z: zPos,
-                            year: def.year,
-                            size: 30, 
-                            relX: def.relX,
-                            relY: def.relY,
-                            label: def.name,
-                            description: def.description,
-                            imageBW: imageBW,
-                            imageColor: imageColor,
-                            currentImage: imageBW // Standardmäßig SW-Logo
+                            type: 'logo', z: zPos, year: def.year, size: 30, 
+                            relX: def.relX, relY: def.relY, label: def.name,
+                            description: def.description, imageBW: imageBW, imageColor: imageColor,
+                            currentImage: imageBW 
                          };
                          logos.push(logoObject);
                          renderableObjects.push(logoObject);
@@ -149,10 +160,10 @@
                 });
 
                 await Promise.all(imagePromises);
-                console.log('Alle Logos erfolgreich geladen.');
+                 console.log('Alle Logo-Bilder erfolgreich geladen.');
 
             } catch (error) {
-                console.error('Fehler beim Laden der Logo-Daten:', error);
+                console.error('Fehler beim Laden der Logo-Bilder:', error);
             }
         }
 
