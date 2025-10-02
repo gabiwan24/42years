@@ -26,7 +26,7 @@
 <body>
     <!-- UI-Overlay für die aktuelle Jahresanzeige -->
     <div id="ui-overlay" class="fixed top-4 left-1/2 transform -translate-x-1/2 p-4 bg-black bg-opacity-70 rounded-xl shadow-2xl border border-white/30 z-10">
-        <h1 class="text-xl font-bold text-primary text-white">Aktuelles Jahr: <span id="current-year" class="text-3xl">1984</span></h1>
+        <h1 class="text-xl font-bold text-primary text-white">Aktuelles Jahr: <span id="current-year" class="text-3xl">2025</span></h1>
         <p class="text-xs text-secondary mt-1 text-center text-gray-400">Scrollen Sie mit dem Mausrad, um sich in der Zeit zu bewegen.</p>
     </div>
 
@@ -37,8 +37,26 @@
         const canvas = document.getElementById('timeline-canvas');
         const ctx = canvas.getContext('2d');
 
+        // --- Zeit- und Skalenkonstanten ---
+        const MIN_YEAR = 1984;
+        const VISUAL_MAX_YEAR = 2025; // Letztes sichtbares Jahr
+        const Z_DISTANCE = 4000;
+        const Z_SCALE = Z_DISTANCE / (VISUAL_MAX_YEAR - MIN_YEAR);
+
+        // --- Hilfsfunktionen für Zeit/Position (KORRIGIERT: 2025 nah, 1984 fern) ---
+        function yearToZ(year) {
+            const clampedYear = Math.max(MIN_YEAR, year);
+            return (VISUAL_MAX_YEAR - clampedYear) * Z_SCALE;
+        }
+
+        function zToYear(z) {
+            const year = VISUAL_MAX_YEAR - (z / Z_SCALE);
+            return Math.max(MIN_YEAR, year);
+        }
+
         // --- Kamera & Projektion ---
-        const START_Z = 150; // Kameraposition vor dem Tunneleingang
+        const START_Z = yearToZ(VISUAL_MAX_YEAR) - 150;
+        const END_Z = yearToZ(MIN_YEAR) - 150;
         const camera = { x: 0, y: 0, z: START_Z };
         let targetZ = START_Z;
         let focalLength;
@@ -48,44 +66,23 @@
         let wallHeight = 100;
         const WALL_DISTANCE = 50; 
 
-        // --- Zeit- und Skalenkonstanten ---
-        const MIN_YEAR = 1984;
-        const MAX_YEAR = 2025;
-        const TOTAL_YEARS = MAX_YEAR - MIN_YEAR;
-        const Z_DISTANCE = 4000;
-        const Z_SCALE = Z_DISTANCE / TOTAL_YEARS;
-
         // --- Easing Konstanten ---
         const SCROLL_SENSITIVITY = 1.0;
         const EASE_FACTOR = 0.08;
         
         // --- Sichtbarkeitskonstanten ---
         const VISIBLE_RANGE_YEARS = 7;
-        const FADE_RANGE_YEARS = 7; // Geändert von 5 auf 7
-
-        // --- Kameragrenzen für die Z-Achse ---
-        const Z_LIMIT_FAR = yearToZ(MAX_YEAR) - 50; // Das tiefste Ende des Tunnels
+        const FADE_RANGE_YEARS = 7;
         
         // --- Datenspeicher ---
         const depthLines = [];
         const logos = [];
         const renderableObjects = [];
-
-        // --- Hilfsfunktionen für Zeit/Position (INVERTIERT) ---
-        function yearToZ(year) {
-            const clampedYear = Math.min(MAX_YEAR, Math.max(MIN_YEAR, year));
-            return (clampedYear - MIN_YEAR) * -Z_SCALE;
-        }
-
-        function zToYear(z) {
-            const year = MIN_YEAR - (z / Z_SCALE);
-            return Math.min(MAX_YEAR, Math.max(MIN_YEAR, year));
-        }
         
         // --- 3D zu 2D Projektionsfunktion ---
         function project(point) {
             const relativeZ = point.z - camera.z;
-            if (relativeZ <= 0.1) return null;
+            if (relativeZ <= 0.1) return null; // Punkte müssen VOR der Kamera sein (positives Z)
 
             const scale = focalLength / relativeZ;
 
@@ -106,7 +103,8 @@
         
         // --- Geometrie-Daten generieren ---
         function generateTimelineData() {
-            for (let i = 0; i <= TOTAL_YEARS; i++) {
+            const totalVisibleYears = VISUAL_MAX_YEAR - MIN_YEAR;
+            for (let i = 0; i <= totalVisibleYears; i++) {
                 const year = MIN_YEAR + i;
                 const zPos = yearToZ(year);
                 
@@ -131,8 +129,8 @@
                     x: 0, 
                     y: 0,
                     text: String(year),
-                    baseFontSize: 4, // Schriftgröße halbiert
-                    color: '#888888' // Farbe auf mittelhelles Grau geändert
+                    baseFontSize: 4,
+                    color: '#888888'
                 };
                 depthLines.push(yearLabel);
                 renderableObjects.push(yearLabel);
@@ -140,8 +138,9 @@
         }
         
         function generateLogoData() {
+            const totalVisibleYears = VISUAL_MAX_YEAR - MIN_YEAR;
             for (let i = 1; i <= 40; i++) {
-                const year = MIN_YEAR + Math.random() * TOTAL_YEARS;
+                const year = MIN_YEAR + Math.random() * totalVisibleYears;
                 const zPos = yearToZ(year);
                 const size = Math.random() * 15 + 8;
                 const relX = Math.random() * 2 - 1;
@@ -184,7 +183,8 @@
 
         function draw() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            renderableObjects.sort((a, b) => (b.z - camera.z) - (a.z - camera.z));
+            // Sortierung von fern (großes Z) nach nah (kleines Z)
+            renderableObjects.sort((a, b) => b.z - a.z);
 
             const cameraYear = zToYear(camera.z);
 
@@ -192,7 +192,6 @@
                 const relativeZ = obj.z - camera.z;
                 if (relativeZ <= 0) return;
 
-                // Alpha-Berechnung basierend auf Jahresabstand
                 const yearDiff = Math.abs(obj.year - cameraYear);
                 let alpha = 1.0;
                 if (yearDiff > VISIBLE_RANGE_YEARS) {
@@ -247,8 +246,9 @@
 
         function onMouseWheel(event) {
             const scrollAmount = event.deltaY * SCROLL_SENSITIVITY;
-            targetZ -= scrollAmount;
-            targetZ = Math.min(START_Z, Math.max(Z_LIMIT_FAR, targetZ));
+            targetZ += scrollAmount;
+            // Begrenzt die Kameraposition
+            targetZ = Math.max(START_Z, Math.min(END_Z, targetZ));
         }
 
         function onWindowResize() {
@@ -265,7 +265,7 @@
             const currentYear = zToYear(camera.z);
             const yearElement = document.getElementById('current-year');
             if (yearElement) {
-                const yearToDisplay = Math.round(Math.min(MAX_YEAR, Math.max(MIN_YEAR, currentYear)));
+                const yearToDisplay = Math.round(Math.min(VISUAL_MAX_YEAR, Math.max(MIN_YEAR, currentYear)));
                 yearElement.textContent = yearToDisplay;
             }
         }
