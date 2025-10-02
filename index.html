@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Zeitleiste (invertiert)</title>
+    <!-- Tailwind CSS (für das UI-Overlay) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Inter', sans-serif; }
+        canvas { display: block; background-color: #000; }
+    </style>
+     <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'primary': '#FFFFFF',
+                        'secondary': '#888888',
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body>
+    <!-- UI-Overlay für die aktuelle Jahresanzeige -->
+    <div id="ui-overlay" class="fixed top-4 left-1/2 transform -translate-x-1/2 p-4 bg-black bg-opacity-70 rounded-xl shadow-2xl border border-white/30 z-10">
+        <h1 class="text-xl font-bold text-primary text-white">Aktuelles Jahr: <span id="current-year" class="text-3xl">1984</span></h1>
+        <p class="text-xs text-secondary mt-1 text-center text-gray-400">Scrollen Sie mit dem Mausrad, um sich in der Zeit zu bewegen.</p>
+    </div>
+
+    <canvas id="timeline-canvas"></canvas>
+
+    <script>
+        // --- Globale Variablen für Canvas ---
+        const canvas = document.getElementById('timeline-canvas');
+        const ctx = canvas.getContext('2d');
+
+        // --- Kamera & Projektion ---
+        const START_Z = 150; // Kameraposition vor dem Tunneleingang
+        const camera = { x: 0, y: 0, z: START_Z };
+        let targetZ = START_Z;
+        let focalLength;
+
+        // --- Responsiveness & Geometrie-Dimensionen ---
+        let sideLimit = 100;
+        let wallHeight = 100;
+        const WALL_DISTANCE = 50; 
+
+        // --- Zeit- und Skalenkonstanten ---
+        const MIN_YEAR = 1984;
+        const MAX_YEAR = 2025;
+        const TOTAL_YEARS = MAX_YEAR - MIN_YEAR;
+        const Z_DISTANCE = 4000;
+        const Z_SCALE = Z_DISTANCE / TOTAL_YEARS;
+
+        // --- Easing Konstanten ---
+        const SCROLL_SENSITIVITY = 1.0;
+        const EASE_FACTOR = 0.08;
+        
+        // --- Sichtbarkeitskonstanten ---
+        const VISIBLE_RANGE_YEARS = 7;
+        const FADE_RANGE_YEARS = 7; // Geändert von 5 auf 7
+
+        // --- Kameragrenzen für die Z-Achse ---
+        const Z_LIMIT_FAR = yearToZ(MAX_YEAR) - 50; // Das tiefste Ende des Tunnels
+        
+        // --- Datenspeicher ---
+        const depthLines = [];
+        const logos = [];
+        const renderableObjects = [];
+
+        // --- Hilfsfunktionen für Zeit/Position (INVERTIERT) ---
+        function yearToZ(year) {
+            const clampedYear = Math.min(MAX_YEAR, Math.max(MIN_YEAR, year));
+            return (clampedYear - MIN_YEAR) * -Z_SCALE;
+        }
+
+        function zToYear(z) {
+            const year = MIN_YEAR - (z / Z_SCALE);
+            return Math.min(MAX_YEAR, Math.max(MIN_YEAR, year));
+        }
+        
+        // --- 3D zu 2D Projektionsfunktion ---
+        function project(point) {
+            const relativeZ = point.z - camera.z;
+            if (relativeZ <= 0.1) return null;
+
+            const scale = focalLength / relativeZ;
+
+            const screenX = canvas.width / 2 + point.x * scale;
+            const screenY = canvas.height / 2 - point.y * scale;
+            return { x: screenX, y: screenY, scale: scale };
+        }
+
+        // --- Initialisierung ---
+        function init() {
+            onWindowResize();
+            generateTimelineData();
+            generateLogoData();
+            window.addEventListener('resize', onWindowResize, false);
+            window.addEventListener('wheel', onMouseWheel, false);
+            animate();
+        }
+        
+        // --- Geometrie-Daten generieren ---
+        function generateTimelineData() {
+            for (let i = 0; i <= TOTAL_YEARS; i++) {
+                const year = MIN_YEAR + i;
+                const zPos = yearToZ(year);
+                
+                const lineSet = {
+                    type: 'lines',
+                    z: zPos,
+                    year: year,
+                    points: [
+                        { x: -sideLimit, y: wallHeight / 2, z: zPos }, { x: sideLimit, y: wallHeight / 2, z: zPos },
+                        { x: -sideLimit, y: -wallHeight / 2, z: zPos }, { x: sideLimit, y: -wallHeight / 2, z: zPos },
+                        { x: -sideLimit, y: -wallHeight / 2, z: zPos }, { x: -sideLimit, y: wallHeight / 2, z: zPos },
+                        { x: sideLimit, y: -wallHeight / 2, z: zPos }, { x: sideLimit, y: wallHeight / 2, z: zPos }
+                    ]
+                };
+                depthLines.push(lineSet);
+                renderableObjects.push(lineSet);
+
+                const yearLabel = {
+                    type: 'text',
+                    z: zPos,
+                    year: year,
+                    x: 0, 
+                    y: 0,
+                    text: String(year),
+                    baseFontSize: 4, // Schriftgröße halbiert
+                    color: '#888888' // Farbe auf mittelhelles Grau geändert
+                };
+                depthLines.push(yearLabel);
+                renderableObjects.push(yearLabel);
+            }
+        }
+        
+        function generateLogoData() {
+            for (let i = 1; i <= 40; i++) {
+                const year = MIN_YEAR + Math.random() * TOTAL_YEARS;
+                const zPos = yearToZ(year);
+                const size = Math.random() * 15 + 8;
+                const relX = Math.random() * 2 - 1;
+                const relY = Math.random();
+
+                const logoObject = {
+                    type: 'logo',
+                    z: zPos,
+                    year: year,
+                    size: size,
+                    relX: relX,
+                    relY: relY,
+                    label: `LOGO_${String(i).padStart(2, '0')}`,
+                    color: '#FFFFFF'
+                };
+                logos.push(logoObject);
+                renderableObjects.push(logoObject);
+            }
+        }
+        
+        function updateGeometryPositions() {
+            const requiredHalfHeight = WALL_DISTANCE * Math.tan((Math.PI / 180 * 75) / 2);
+            wallHeight = requiredHalfHeight * 2 * 0.95; 
+            sideLimit = requiredHalfHeight * (canvas.width / canvas.height) * 0.95;
+
+            depthLines.forEach(obj => {
+                if(obj.type === 'lines') {
+                    obj.points = [
+                        { x: -sideLimit, y: wallHeight / 2, z: obj.z }, { x: sideLimit, y: wallHeight / 2, z: obj.z },
+                        { x: -sideLimit, y: -wallHeight / 2, z: obj.z }, { x: sideLimit, y: -wallHeight / 2, z: obj.z },
+                        { x: -sideLimit, y: -wallHeight / 2, z: obj.z }, { x: -sideLimit, y: wallHeight / 2, z: obj.z },
+                        { x: sideLimit, y: -wallHeight / 2, z: obj.z }, { x: sideLimit, y: wallHeight / 2, z: obj.z }
+                    ];
+                } else if (obj.type === 'text') {
+                    obj.x = -sideLimit - 10;
+                    obj.y = 0;
+                }
+            });
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            renderableObjects.sort((a, b) => (b.z - camera.z) - (a.z - camera.z));
+
+            const cameraYear = zToYear(camera.z);
+
+            renderableObjects.forEach(obj => {
+                const relativeZ = obj.z - camera.z;
+                if (relativeZ <= 0) return;
+
+                // Alpha-Berechnung basierend auf Jahresabstand
+                const yearDiff = Math.abs(obj.year - cameraYear);
+                let alpha = 1.0;
+                if (yearDiff > VISIBLE_RANGE_YEARS) {
+                    const fadeAmount = (yearDiff - VISIBLE_RANGE_YEARS) / FADE_RANGE_YEARS;
+                    alpha = Math.max(0, 1 - fadeAmount);
+                }
+                
+                if (alpha <= 0) return;
+                ctx.globalAlpha = alpha;
+                
+                if (obj.type === 'lines') {
+                    ctx.strokeStyle = '#FFFFFF';
+                    ctx.lineWidth = Math.max(0.25, 1.25 - (relativeZ / Z_DISTANCE) * 1);
+                    ctx.beginPath();
+                    for(let i = 0; i < obj.points.length; i += 2) {
+                        const p1 = project(obj.points[i]);
+                        const p2 = project(obj.points[i+1]);
+                        if(p1 && p2) {
+                            ctx.moveTo(p1.x, p1.y);
+                            ctx.lineTo(p2.x, p2.y);
+                        }
+                    }
+                    ctx.stroke();
+                } else if (obj.type === 'text') {
+                    const pos = project({ x: obj.x, y: obj.y, z: obj.z });
+                    if (pos) {
+                        ctx.fillStyle = obj.color;
+                        ctx.font = `${obj.baseFontSize * pos.scale}px Inter`;
+                        ctx.textAlign = 'right';
+                        ctx.textBaseline = 'middle';
+                        ctx.fillText(obj.text, pos.x, pos.y);
+                    }
+                } else if (obj.type === 'logo') {
+                    const x = obj.relX * sideLimit * 0.9;
+                    const y = (obj.relY * wallHeight * 0.9) - wallHeight / 2;
+                    const pos = project({ x, y, z: obj.z });
+                    
+                    if (pos) {
+                        const size = obj.size * pos.scale;
+                        ctx.fillStyle = obj.color;
+                        ctx.fillRect(pos.x - size / 2, pos.y - size / 2, size, size);
+
+                        ctx.font = `${8 * pos.scale}px Inter`;
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        ctx.fillText(obj.label, pos.x, pos.y - size/2 - 5 * pos.scale);
+                    }
+                }
+            });
+            ctx.globalAlpha = 1.0;
+        }
+
+        function onMouseWheel(event) {
+            const scrollAmount = event.deltaY * SCROLL_SENSITIVITY;
+            targetZ -= scrollAmount;
+            targetZ = Math.min(START_Z, Math.max(Z_LIMIT_FAR, targetZ));
+        }
+
+        function onWindowResize() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            const fov_rad = 75 * Math.PI / 180;
+            focalLength = (canvas.height / 2) / Math.tan(fov_rad / 2);
+            updateGeometryPositions();
+        }
+        
+        function updateState() {
+            camera.z += (targetZ - camera.z) * EASE_FACTOR;
+            
+            const currentYear = zToYear(camera.z);
+            const yearElement = document.getElementById('current-year');
+            if (yearElement) {
+                const yearToDisplay = Math.round(Math.min(MAX_YEAR, Math.max(MIN_YEAR, currentYear)));
+                yearElement.textContent = yearToDisplay;
+            }
+        }
+
+        function animate() {
+            updateState();
+            draw();
+            requestAnimationFrame(animate);
+        }
+
+        init();
+    </script>
+</body>
+</html>
+
