@@ -119,9 +119,12 @@
         // --- Ladefunktion für JSON und SVGs ---
         async function loadLogoData() {
             let logoDefinitions;
+            
+            // KORREKTUR: Dynamischen Basispfad für GitHub Pages erstellen
+            let basePath = window.location.href.substring(0, window.location.href.lastIndexOf('/') + 1);
+
             try {
-                // KORREKTUR: Pfad explizit als relativ zum aktuellen Verzeichnis definiert
-                const response = await fetch('./logos.json');
+                const response = await fetch(`${basePath}logos.json`);
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
@@ -131,8 +134,10 @@
                 }
                 console.log('logos.json erfolgreich geladen.');
             } catch (error) {
-                console.warn('Laden von logos.json fehlgeschlagen, verwende Fallback-Daten.', error);
+                console.warn(`Laden von '${basePath}logos.json' fehlgeschlagen, verwende Fallback-Daten.`, error);
                 logoDefinitions = fallbackLogoData;
+                // Wenn Fallback verwendet wird, ist der basePath irrelevant
+                basePath = ''; 
             }
 
             try {
@@ -140,14 +145,15 @@
                     const bwPromise = new Promise((resolve, reject) => {
                         const img = new Image();
                         img.onload = () => resolve(img);
-                        img.onerror = (e) => reject(`Fehler beim Laden von ${def.logoBW}: ${e}`);
-                        img.src = def.logoBW;
+                        img.onerror = (e) => reject(`Fehler beim Laden von ${basePath}${def.logoBW}: ${e}`);
+                        // Benutze den Basispfad, außer für absolute URLs im Fallback
+                        img.src = def.logoBW.startsWith('http') ? def.logoBW : `${basePath}${def.logoBW}`;
                     });
                     const colorPromise = new Promise((resolve, reject) => {
                         const img = new Image();
                         img.onload = () => resolve(img);
-                        img.onerror = (e) => reject(`Fehler beim Laden von ${def.logoColor}: ${e}`);
-                        img.src = def.logoColor;
+                        img.onerror = (e) => reject(`Fehler beim Laden von ${basePath}${def.logoColor}: ${e}`);
+                        img.src = def.logoColor.startsWith('http') ? def.logoColor : `${basePath}${def.logoColor}`;
                     });
 
                     return Promise.all([bwPromise, colorPromise]).then(([imageBW, imageColor]) => {
