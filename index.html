@@ -125,7 +125,8 @@
             let basePath = window.location.href.substring(0, window.location.href.lastIndexOf('/') + 1);
 
             try {
-                const response = await fetch(`${basePath}logos.json`);
+                // KORREKTUR: Cache-Busting-Parameter hinzugefügt
+                const response = await fetch(`${basePath}logos.json?v=${new Date().getTime()}`);
                 if (!response.ok) { throw new Error(`HTTP error! status: ${response.status}`); }
                 logoDefinitions = await response.json();
                 if (!logoDefinitions || logoDefinitions.length === 0) { throw new Error('logos.json ist leer oder ungültig.');}
@@ -364,7 +365,7 @@
             focalLength = (canvas.height / 2) / Math.tan(fov_rad / 2);
             updateGeometryPositions();
         }
-         
+        
         function updateState() {
             camera.z += (targetZ - camera.z) * EASE_FACTOR;
             
