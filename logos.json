@@ -4,7 +4,7 @@
     "name": "GenRide",
     "description": "Infos zu Genride.",
     "logoColor": "logos/genride_c.svg",
-    "logoBW": "logos/genride_bw.svg",
+    "logoBW": "logos/genride_sw.svg",
     "relX": -0.5,
     "relY": 0.8
   },
