@@ -242,43 +242,50 @@
 
             // Tunnel-Elemente zeichnen (werden ausgefadet)
             ctx.globalAlpha = 1 - easedProgress;
-            renderableObjects.forEach(obj => {
-                if (obj.type === 'logo') return; // Logos separat behandeln
-                 const relativeZ = obj.z - camera.z;
-                if (relativeZ <= 0) return;
-                const yearDiff = Math.abs(obj.year - cameraYear);
-                if (yearDiff > VISIBLE_RANGE_YEARS + FADE_RANGE_YEARS) return;
+            if (ctx.globalAlpha > 0) {
+                renderableObjects.forEach(obj => {
+                    if (obj.type === 'logo') return; // Logos separat behandeln
+                     const relativeZ = obj.z - camera.z;
+                    if (relativeZ <= 0) return;
+                    const yearDiff = Math.abs(obj.year - cameraYear);
+                    if (yearDiff > VISIBLE_RANGE_YEARS + FADE_RANGE_YEARS) return;
 
-                if (obj.type === 'lines') {
-                    ctx.strokeStyle = '#FFFFFF';
-                    ctx.lineWidth = Math.max(0.25, 1.25 - (relativeZ / Z_DISTANCE) * 1);
-                    ctx.beginPath();
-                    for(let i = 0; i < obj.points.length; i += 2) {
-                        const p1 = project(obj.points[i]);
-                        const p2 = project(obj.points[i+1]);
-                        if(p1 && p2) { ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); }
+                    if (obj.type === 'lines') {
+                        ctx.strokeStyle = '#FFFFFF';
+                        ctx.lineWidth = Math.max(0.25, 1.25 - (relativeZ / Z_DISTANCE) * 1);
+                        ctx.beginPath();
+                        for(let i = 0; i < obj.points.length; i += 2) {
+                            const p1 = project(obj.points[i]);
+                            const p2 = project(obj.points[i+1]);
+                            if(p1 && p2) { ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); }
+                        }
+                        ctx.stroke();
+                    } else if (obj.type === 'text') {
+                        const pos = project({ x: obj.x, y: obj.y, z: obj.z });
+                        if (pos) {
+                            ctx.fillStyle = obj.color;
+                            ctx.font = `${obj.baseFontSize * pos.scale}px Inter`;
+                            ctx.textAlign = 'right';
+                            ctx.textBaseline = 'middle';
+                            ctx.fillText(obj.text, pos.x, pos.y);
+                        }
                     }
-                    ctx.stroke();
-                } else if (obj.type === 'text') {
-                    const pos = project({ x: obj.x, y: obj.y, z: obj.z });
-                    if (pos) {
-                        ctx.fillStyle = obj.color;
-                        ctx.font = `${obj.baseFontSize * pos.scale}px Inter`;
-                        ctx.textAlign = 'right';
-                        ctx.textBaseline = 'middle';
-                        ctx.fillText(obj.text, pos.x, pos.y);
-                    }
-                }
-            });
+                });
+            }
             
             // Logos zeichnen (fliegen zwischen den Positionen)
             logos.forEach(logo => {
                 // Tunnel Position berechnen
                 const tunnelX = logo.relX * sideLimit * 0.9;
                 const tunnelY = (logo.relY * wallHeight * 0.9) - wallHeight / 2;
-                const tunnelPos = project({ x: tunnelX, y: tunnelY, z: logo.z });
                 
-                if (!tunnelPos) return;
+                // KORREKTUR: Standard-Position definieren, falls das Logo nicht projiziert werden kann
+                let tunnelPos = project({ x: tunnelX, y: tunnelY, z: logo.z });
+                if (!tunnelPos) {
+                    // Wenn das Logo außerhalb des Sichtfelds ist, startet/endet seine Animation 
+                    // in der Mitte des Bildschirms mit der Größe 0.
+                    tunnelPos = { x: canvas.width / 2, y: canvas.height / 2, scale: 0 };
+                }
 
                 // Grid Position
                 const gridX = logo.gridX;
@@ -301,7 +308,9 @@
                     tunnelAlpha = Math.max(0, 1 - fadeAmount);
                 }
                 ctx.globalAlpha = lerp(tunnelAlpha, 1.0, easedProgress);
-                if (ctx.globalAlpha <= 0) return;
+                
+                // KORREKTUR: Das 'return' bei alpha <= 0 wurde entfernt.
+                if (ctx.globalAlpha < 0.001) return;
 
                 // Seitenverhältnis beibehalten
                 const aspect = logo.currentImage.naturalWidth / logo.currentImage.naturalHeight;
