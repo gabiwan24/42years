@@ -145,17 +145,20 @@
 
             try {
                 const imagePromises = logoDefinitions.map(def => {
+                    const cacheBuster = `?v=${new Date().getTime()}`;
                     const bwPromise = new Promise((resolve, reject) => {
                         const img = new Image();
+                        const src = def.logoBW.startsWith('http') ? def.logoBW : `${basePath}${def.logoBW}${cacheBuster}`;
                         img.onload = () => resolve(img);
-                        img.onerror = (e) => reject(`Failed to load ${basePath}${def.logoBW}: ${e}`);
-                        img.src = def.logoBW.startsWith('http') ? def.logoBW : `${basePath}${def.logoBW}`;
+                        img.onerror = (e) => reject(`Failed to load ${src}: ${e}`);
+                        img.src = src;
                     });
                     const colorPromise = new Promise((resolve, reject) => {
                         const img = new Image();
+                        const src = def.logoColor.startsWith('http') ? def.logoColor : `${basePath}${def.logoColor}${cacheBuster}`;
                         img.onload = () => resolve(img);
-                        img.onerror = (e) => reject(`Failed to load ${basePath}${def.logoColor}: ${e}`);
-                        img.src = def.logoColor.startsWith('http') ? def.logoColor : `${basePath}${def.logoColor}`;
+                        img.onerror = (e) => reject(`Failed to load ${src}: ${e}`);
+                        img.src = src;
                     });
 
                     return Promise.all([bwPromise, colorPromise]).then(([imageBW, imageColor]) => {
@@ -165,7 +168,7 @@
                             relX: def.relX, relY: def.relY, label: def.name,
                             description: def.description, imageBW: imageBW, imageColor: imageColor,
                             currentImage: imageBW,
-                            scale: def.scale || 1.0 // NEU: Skalierungsfaktor aus JSON
+                            scale: def.scale || 1.0 
                          };
                          logos.push(logoObject);
                          renderableObjects.push(logoObject);
@@ -279,11 +282,8 @@
                 const tunnelX = logo.relX * sideLimit * 0.9;
                 const tunnelY = (logo.relY * wallHeight * 0.9) - wallHeight / 2;
                 
-                // KORREKTUR: Standard-Position definieren, falls das Logo nicht projiziert werden kann
                 let tunnelPos = project({ x: tunnelX, y: tunnelY, z: logo.z });
                 if (!tunnelPos) {
-                    // Wenn das Logo außerhalb des Sichtfelds ist, startet/endet seine Animation 
-                    // in der Mitte des Bildschirms mit der Größe 0.
                     tunnelPos = { x: canvas.width / 2, y: canvas.height / 2, scale: 0 };
                 }
 
@@ -309,7 +309,6 @@
                 }
                 ctx.globalAlpha = lerp(tunnelAlpha, 1.0, easedProgress);
                 
-                // KORREKTUR: Das 'return' bei alpha <= 0 wurde entfernt.
                 if (ctx.globalAlpha < 0.001) return;
 
                 // Seitenverhältnis beibehalten
