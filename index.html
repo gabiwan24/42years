@@ -30,12 +30,16 @@
         <p class="text-xs text-secondary mt-1 text-center text-gray-400">Scrollen (Mausrad), Farbe (Leertaste), Raster (Enter)</p>
     </div>
 
+    <!-- NEU: Versions- und Zeitstempel-Anzeige -->
+    <div id="version-info" class="fixed top-4 right-4 z-10 text-right text-xs text-white/50"></div>
+
     <canvas id="timeline-canvas"></canvas>
 
     <script>
         // --- Globale Variablen für Canvas ---
         const canvas = document.getElementById('timeline-canvas');
         const ctx = canvas.getContext('2d');
+        const VERSION = '1.2.0'; // Versionsnummer
 
         // --- Zeit- und Skalenkonstanten ---
         const MIN_YEAR = 1984;
@@ -114,6 +118,13 @@
         // --- Initialisierung ---
         async function init() {
             document.getElementById('current-year').textContent = VISUAL_MAX_YEAR;
+            // NEU: Version und Zeitstempel setzen
+            const versionInfoEl = document.getElementById('version-info');
+            if (versionInfoEl) {
+                const timestamp = new Date().toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' });
+                versionInfoEl.innerHTML = `<span>v${VERSION}</span><br><span>${timestamp}</span>`;
+            }
+
             await loadLogoData();
             logos.sort((a, b) => a.year - b.year); // Logos für Raster sortieren
             generateTimelineData();
@@ -311,7 +322,6 @@
                 const img = logo.currentImage;
                 if (!img || !img.complete) return;
 
-                // KORREKTUR: Robusteres Seitenverhältnis mit Fallback auf 1.0
                 let aspect = 1.0;
                 if (img.naturalWidth > 0 && img.naturalHeight > 0) {
                     aspect = img.naturalWidth / img.naturalHeight;
