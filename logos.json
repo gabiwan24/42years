@@ -1,4 +1,14 @@
 [
+
+   {
+    "year": 2018,
+    "name": "Markant",
+    "description": "Infos zu Markant.",
+    "logoColor": "logos/markant.svg",
+    "logoBW": "logos/markant_sw.svg",
+    "relX": -0.5,
+    "relY": 0.8
+  },
   {
     "year": 2006,
     "name": "Canyon Bicycles",
