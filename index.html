@@ -260,10 +260,16 @@
                     if (obj.type === 'logo') return;
                     const relativeZ = obj.z - camera.z;
                     if (relativeZ <= 0) return;
-                    if (Math.abs(obj.year - cameraYear) > VISIBLE_RANGE_YEARS + FADE_RANGE_YEARS) return;
+                    const yearDiff = Math.abs(obj.year - cameraYear);
+                    if (yearDiff > VISIBLE_RANGE_YEARS + FADE_RANGE_YEARS) return;
 
                     if (obj.type === 'lines') {
-                        ctx.strokeStyle = '#FFFFFF';
+                        // NEU: Farbverlauf für Rechtecke
+                        const gradientRatio = Math.min(1, yearDiff / VISIBLE_RANGE_YEARS);
+                        const colorValue = Math.round(255 - gradientRatio * 127); // 255 (weiß) -> 128 (50% grau)
+                        const colorHex = colorValue.toString(16).padStart(2, '0');
+                        ctx.strokeStyle = `#${colorHex}${colorHex}${colorHex}`;
+                        
                         ctx.lineWidth = Math.max(0.25, 1.25 - (relativeZ / Z_DISTANCE) * 1);
                         ctx.beginPath();
                         for(let i = 0; i < obj.points.length; i += 2) {
