@@ -39,7 +39,7 @@
         // --- Globale Variablen für Canvas ---
         const canvas = document.getElementById('timeline-canvas');
         const ctx = canvas.getContext('2d');
-        const VERSION = '1.2.0'; // Versionsnummer
+        const VERSION = '1.2.1'; // Versionsnummer
 
         // --- Zeit- und Skalenkonstanten ---
         const MIN_YEAR = 1984;
@@ -93,7 +93,7 @@
         const depthLines = [];
         const logos = [];
         const renderableObjects = [];
-        const loadedLogoNames = []; // NEU: Für Debug-Anzeige
+        const loadedLogoInfo = []; // NEU: Für Debug-Anzeige
         
         // --- Fallback-Daten ---
         const fallbackLogoData = [
@@ -118,7 +118,6 @@
         // --- Initialisierung ---
         async function init() {
             document.getElementById('current-year').textContent = VISUAL_MAX_YEAR;
-            // NEU: Version und Zeitstempel setzen
             const versionInfoEl = document.getElementById('version-info');
             if (versionInfoEl) {
                 const timestamp = new Date().toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' });
@@ -126,7 +125,7 @@
             }
 
             await loadLogoData();
-            logos.sort((a, b) => a.year - b.year); // Logos für Raster sortieren
+            logos.sort((a, b) => a.year - b.year);
             generateTimelineData();
             onWindowResize(); 
             window.addEventListener('resize', onWindowResize, false);
@@ -184,7 +183,8 @@
                          };
                          logos.push(logoObject);
                          renderableObjects.push(logoObject);
-                         loadedLogoNames.push(def.name);
+                         const hasDims = imageBW.naturalWidth > 0 && imageBW.naturalHeight > 0;
+                         loadedLogoInfo.push({ name: def.name, hasDims: hasDims });
                     });
                 });
                 await Promise.all(imagePromises);
@@ -204,10 +204,8 @@
             logos.forEach((logo, index) => {
                 const col = index % cols;
                 const row = Math.floor(index / cols);
-
                 const x = padding + col * (logoCellSize + margin);
                 const y = padding + row * (logoCellSize + margin);
-
                 logo.gridX = x;
                 logo.gridY = y;
                 logo.gridSize = logoCellSize;
@@ -256,15 +254,14 @@
             const cameraYear = zToYear(camera.z);
             hoveredLogo = null;
 
-            // Tunnel-Elemente zeichnen (werden ausgefadet)
+            // Tunnel-Elemente zeichnen
             ctx.globalAlpha = 1 - easedProgress;
             if (ctx.globalAlpha > 0) {
                 renderableObjects.forEach(obj => {
                     if (obj.type === 'logo') return;
-                     const relativeZ = obj.z - camera.z;
+                    const relativeZ = obj.z - camera.z;
                     if (relativeZ <= 0) return;
-                    const yearDiff = Math.abs(obj.year - cameraYear);
-                    if (yearDiff > VISIBLE_RANGE_YEARS + FADE_RANGE_YEARS) return;
+                    if (Math.abs(obj.year - cameraYear) > VISIBLE_RANGE_YEARS + FADE_RANGE_YEARS) return;
 
                     if (obj.type === 'lines') {
                         ctx.strokeStyle = '#FFFFFF';
@@ -289,52 +286,38 @@
                 });
             }
             
-            // Logos zeichnen (fliegen zwischen den Positionen)
+            // Logos zeichnen
             logos.forEach(logo => {
-                const tunnelX = logo.relX * sideLimit * 0.9;
-                const tunnelY = (logo.relY * wallHeight * 0.9) - wallHeight / 2;
-                
-                let tunnelPos = project({ x: tunnelX, y: tunnelY, z: logo.z });
-                if (!tunnelPos) {
-                    tunnelPos = { x: canvas.width / 2, y: canvas.height / 2, scale: 0 };
-                }
+                let tunnelPos = project({ x: logo.relX * sideLimit * 0.9, y: (logo.relY * wallHeight * 0.9) - wallHeight / 2, z: logo.z });
+                if (!tunnelPos) { tunnelPos = { x: canvas.width / 2, y: canvas.height / 2, scale: 0 }; }
 
-                const gridX = logo.gridX;
-                const gridY = logo.gridY;
-                
-                const currentX = lerp(tunnelPos.x, gridX + logo.gridSize / 2, easedProgress);
-                const currentY = lerp(tunnelPos.y, gridY + logo.gridSize / 2, easedProgress);
+                const currentX = lerp(tunnelPos.x, logo.gridX + logo.gridSize / 2, easedProgress);
+                const currentY = lerp(tunnelPos.y, logo.gridY + logo.gridSize / 2, easedProgress);
+                const currentBaseSize = lerp(logo.size * tunnelPos.scale * logo.scale, logo.gridSize * logo.scale, easedProgress);
 
-                const tunnelSize = logo.size * tunnelPos.scale * logo.scale;
-                const gridSize = logo.gridSize * logo.scale;
-                const currentBaseSize = lerp(tunnelSize, gridSize, easedProgress);
-
-                const yearDiff = Math.abs(logo.year - cameraYear);
                 let tunnelAlpha = 1.0;
-                if (yearDiff > VISIBLE_RANGE_YEARS) {
-                    const fadeAmount = (yearDiff - VISIBLE_RANGE_YEARS) / FADE_RANGE_YEARS;
-                    tunnelAlpha = Math.max(0, 1 - fadeAmount);
+                if (Math.abs(logo.year - cameraYear) > VISIBLE_RANGE_YEARS) {
+                    tunnelAlpha = Math.max(0, 1 - (Math.abs(logo.year - cameraYear) - VISIBLE_RANGE_YEARS) / FADE_RANGE_YEARS);
                 }
                 ctx.globalAlpha = lerp(tunnelAlpha, 1.0, easedProgress);
-                
                 if (ctx.globalAlpha < 0.001) return;
 
                 const img = logo.currentImage;
-                if (!img || !img.complete) return;
+                if (!img) return;
 
-                let aspect = 1.0;
-                if (img.naturalWidth > 0 && img.naturalHeight > 0) {
-                    aspect = img.naturalWidth / img.naturalHeight;
-                }
-
+                let aspect = (img.naturalWidth > 0 && img.naturalHeight > 0) ? (img.naturalWidth / img.naturalHeight) : 1.0;
                 let w, h;
                 if (aspect > 1) { w = currentBaseSize; h = currentBaseSize / aspect; } 
                 else { h = currentBaseSize; w = currentBaseSize * aspect; }
                 const left = currentX - w / 2;
                 const top = currentY - h / 2;
                 
-                ctx.drawImage(img, left, top, w, h);
-
+                try {
+                    ctx.drawImage(img, left, top, w, h);
+                } catch (e) {
+                    // Verhindert Absturz, falls Bild doch nicht gezeichnet werden kann
+                }
+                
                 if (mousePos.x >= left && mousePos.x <= left + w && mousePos.y >= top && mousePos.y <= top + h) {
                     hoveredLogo = logo;
                 }
@@ -368,8 +351,7 @@
             }
             lines.push(currentLine.trim());
             const tooltipHeight = lines.length * lineHeight + padding * 2;
-            const textWidths = lines.map(line => ctx.measureText(line).width);
-            const tooltipWidth = Math.max(...textWidths) + padding * 2;
+            const tooltipWidth = Math.max(...lines.map(line => ctx.measureText(line).width)) + padding * 2;
             let tooltipX = x + 15;
             let tooltipY = y + 15;
             if (tooltipX + tooltipWidth > canvas.width) { tooltipX = x - tooltipWidth - 15; }
@@ -391,23 +373,19 @@
         
         function drawDebugInfo() {
             ctx.save();
-            ctx.fillStyle = 'white';
             ctx.font = '10px Inter';
             ctx.textAlign = 'left';
             ctx.textBaseline = 'bottom';
-
             const lineHeight = 12;
             const startX = 10;
             let startY = canvas.height - 10;
-            
-            const statusText = loadedLogoNames.length > 0 ? 'Geladene Logos:' : 'Keine Logos geladen.';
-
-            ctx.fillText(statusText, startX, startY - (loadedLogoNames.length * lineHeight));
-
-            [...loadedLogoNames].reverse().forEach((name, index) => {
-                ctx.fillText(`- ${name}`, startX, startY - (index * lineHeight));
+            const statusText = loadedLogoInfo.length > 0 ? 'Geladene Logos:' : 'Keine Logos geladen.';
+            ctx.fillStyle = 'white';
+            ctx.fillText(statusText, startX, startY - (loadedLogoInfo.length * lineHeight));
+            [...loadedLogoInfo].reverse().forEach((info, index) => {
+                ctx.fillStyle = info.hasDims ? 'lightgreen' : 'yellow';
+                ctx.fillText(`- ${info.name} ${info.hasDims ? '[OK]' : '[NO DIMS]'}`, startX, startY - (index * lineHeight));
             });
-
             ctx.restore();
         }
 
@@ -461,7 +439,7 @@
                 }
             }
 
-            if (transitionProgress < 1) { // Nur im Tunnel-Modus oder während des Übergangs
+            if (transitionProgress < 1) {
                 camera.z += (targetZ - camera.z) * EASE_FACTOR;
                 const currentYear = zToYear(camera.z);
                 const yearElement = document.getElementById('current-year');
