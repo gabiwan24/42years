@@ -89,6 +89,7 @@
         const depthLines = [];
         const logos = [];
         const renderableObjects = [];
+        const loadedLogoNames = []; // NEU: Für Debug-Anzeige
         
         // --- Fallback-Daten ---
         const fallbackLogoData = [
@@ -172,6 +173,7 @@
                          };
                          logos.push(logoObject);
                          renderableObjects.push(logoObject);
+                         loadedLogoNames.push(def.name); // NEU: Namen zur Debug-Liste hinzufügen
                     });
                 });
                 await Promise.all(imagePromises);
@@ -247,7 +249,7 @@
             ctx.globalAlpha = 1 - easedProgress;
             if (ctx.globalAlpha > 0) {
                 renderableObjects.forEach(obj => {
-                    if (obj.type === 'logo') return; // Logos separat behandeln
+                    if (obj.type === 'logo') return;
                      const relativeZ = obj.z - camera.z;
                     if (relativeZ <= 0) return;
                     const yearDiff = Math.abs(obj.year - cameraYear);
@@ -278,7 +280,6 @@
             
             // Logos zeichnen (fliegen zwischen den Positionen)
             logos.forEach(logo => {
-                // Tunnel Position berechnen
                 const tunnelX = logo.relX * sideLimit * 0.9;
                 const tunnelY = (logo.relY * wallHeight * 0.9) - wallHeight / 2;
                 
@@ -287,20 +288,16 @@
                     tunnelPos = { x: canvas.width / 2, y: canvas.height / 2, scale: 0 };
                 }
 
-                // Grid Position
                 const gridX = logo.gridX;
                 const gridY = logo.gridY;
                 
-                // Position interpolieren
                 const currentX = lerp(tunnelPos.x, gridX + logo.gridSize / 2, easedProgress);
                 const currentY = lerp(tunnelPos.y, gridY + logo.gridSize / 2, easedProgress);
 
-                // Größe interpolieren
                 const tunnelSize = logo.size * tunnelPos.scale * logo.scale;
                 const gridSize = logo.gridSize * logo.scale;
                 const currentBaseSize = lerp(tunnelSize, gridSize, easedProgress);
 
-                // Sichtbarkeit im Tunnel
                 const yearDiff = Math.abs(logo.year - cameraYear);
                 let tunnelAlpha = 1.0;
                 if (yearDiff > VISIBLE_RANGE_YEARS) {
@@ -311,15 +308,17 @@
                 
                 if (ctx.globalAlpha < 0.001) return;
 
-                // Seitenverhältnis beibehalten
-                const aspect = logo.currentImage.naturalWidth / logo.currentImage.naturalHeight;
+                const img = logo.currentImage;
+                if (!img || img.naturalWidth === 0 || img.naturalHeight === 0) return;
+
+                const aspect = img.naturalWidth / img.naturalHeight;
                 let w, h;
                 if (aspect > 1) { w = currentBaseSize; h = currentBaseSize / aspect; } 
                 else { h = currentBaseSize; w = currentBaseSize * aspect; }
                 const left = currentX - w / 2;
                 const top = currentY - h / 2;
                 
-                ctx.drawImage(logo.currentImage, left, top, w, h);
+                ctx.drawImage(img, left, top, w, h);
 
                 if (mousePos.x >= left && mousePos.x <= left + w && mousePos.y >= top && mousePos.y <= top + h) {
                     hoveredLogo = logo;
@@ -329,6 +328,8 @@
             if (hoveredLogo) {
                 drawTooltip(hoveredLogo.description, mousePos.x, mousePos.y);
             }
+
+            drawDebugInfo(); // NEU: Debug-Anzeige aufrufen
             ctx.globalAlpha = 1.0;
         }
 
@@ -371,6 +372,29 @@
             lines.forEach((line, index) => {
                 ctx.fillText(line, tooltipX + padding, tooltipY + padding + index * lineHeight);
             });
+        }
+        
+        // NEU: Funktion zur Anzeige der geladenen Logos
+        function drawDebugInfo() {
+            ctx.save();
+            ctx.fillStyle = 'white';
+            ctx.font = '10px Inter';
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'bottom';
+
+            const lineHeight = 12;
+            const startX = 10;
+            let startY = canvas.height - 10;
+            
+            const statusText = loadedLogoNames.length > 0 ? 'Geladene Logos:' : 'Keine Logos geladen.';
+
+            ctx.fillText(statusText, startX, startY - (loadedLogoNames.length * lineHeight));
+
+            [...loadedLogoNames].reverse().forEach((name, index) => {
+                ctx.fillText(`- ${name}`, startX, startY - (index * lineHeight));
+            });
+
+            ctx.restore();
         }
 
         // --- Event Handlers ---
