@@ -173,7 +173,7 @@
                          };
                          logos.push(logoObject);
                          renderableObjects.push(logoObject);
-                         loadedLogoNames.push(def.name); // NEU: Namen zur Debug-Liste hinzufügen
+                         loadedLogoNames.push(def.name);
                     });
                 });
                 await Promise.all(imagePromises);
@@ -309,9 +309,9 @@
                 if (ctx.globalAlpha < 0.001) return;
 
                 const img = logo.currentImage;
-                if (!img || !img.complete) return; // Nur prüfen, ob das Bildobjekt existiert und geladen ist
+                if (!img || !img.complete) return;
 
-                // KORREKTUR: Robuste Aspect-Ratio-Berechnung
+                // KORREKTUR: Robusteres Seitenverhältnis mit Fallback auf 1.0
                 let aspect = 1.0;
                 if (img.naturalWidth > 0 && img.naturalHeight > 0) {
                     aspect = img.naturalWidth / img.naturalHeight;
@@ -334,7 +334,7 @@
                 drawTooltip(hoveredLogo.description, mousePos.x, mousePos.y);
             }
 
-            drawDebugInfo(); // Debug-Anzeige aufrufen
+            drawDebugInfo();
             ctx.globalAlpha = 1.0;
         }
 
@@ -379,7 +379,6 @@
             });
         }
         
-        // NEU: Funktion zur Anzeige der geladenen Logos
         function drawDebugInfo() {
             ctx.save();
             ctx.fillStyle = 'white';
