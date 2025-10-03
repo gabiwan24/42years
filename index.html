@@ -9,22 +9,6 @@
     <style>
         body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Inter', sans-serif; }
         canvas { display: block; background-color: #000; }
-        /* Stile für den Berechtigungs-Overlay */
-        #permission-overlay {
-            background-color: rgba(0,0,0,0.8);
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-        }
-        #permission-button {
-            background-color: #fff;
-            color: #000;
-            border: 2px solid #fff;
-            transition: all 0.3s ease;
-        }
-        #permission-button:hover {
-            background-color: transparent;
-            color: #fff;
-        }
     </style>
      <script>
         tailwind.config = {
@@ -43,19 +27,11 @@
     <!-- UI-Overlay für die aktuelle Jahresanzeige -->
     <div id="ui-overlay" class="fixed top-4 left-1/2 transform -translate-x-1/2 p-4 bg-black bg-opacity-70 rounded-xl shadow-2xl border border-white/30 z-10">
         <h1 class="text-xl font-bold text-primary text-white">Aktuelles Jahr: <span id="current-year" class="text-3xl">2025</span></h1>
-        <p id="instruction-text" class="text-xs text-secondary mt-1 text-center text-gray-400">Scrollen (Mausrad), Farbe (Leertaste), Raster (Enter)</p>
+        <p class="text-xs text-secondary mt-1 text-center text-gray-400">Scrollen (Mausrad), Farbe (Leertaste), Raster (Enter)</p>
     </div>
 
     <!-- Versions- und Zeitstempel-Anzeige -->
     <div id="version-info" class="fixed top-4 right-4 z-10 text-right text-xs text-white/50"></div>
-    
-    <!-- NEU: Overlay für Berechtigungsanfrage auf Mobilgeräten -->
-    <div id="permission-overlay" class="fixed inset-0 z-20 flex-col justify-center items-center text-center text-white p-8 hidden">
-        <h2 class="text-2xl font-bold mb-4">Interaktive Zeitreise</h2>
-        <p class="mb-8 max-w-sm">Diese Anwendung verwendet die Bewegungssensoren deines Geräts, um durch die Zeit zu navigieren. Bitte erteile die Erlaubnis, um zu starten.</p>
-        <button id="permission-button" class="font-bold py-3 px-8 rounded-lg text-lg">Start</button>
-    </div>
-
 
     <canvas id="timeline-canvas"></canvas>
 
@@ -63,7 +39,7 @@
         // --- Globale Variablen für Canvas ---
         const canvas = document.getElementById('timeline-canvas');
         const ctx = canvas.getContext('2d');
-        const VERSION = '1.3.0'; // Versionsnummer
+        const VERSION = '1.2.2'; // Versionsnummer zurückgesetzt
 
         // --- Zeit- und Skalenkonstanten ---
         const MIN_YEAR = 1984;
@@ -96,10 +72,6 @@
         let viewMode = 'tunnel';
         let transitionProgress = 0;
         let isTransitioning = false;
-
-        // --- NEU: Mobile Steuerung ---
-        const NEUTRAL_BETA = 75; // Angenommene neutrale Handy-Haltung (leicht geneigt)
-        const TILT_SENSITIVITY = 2.5; // Wie stark die Neigung die Position beeinflusst
         
         // --- Responsiveness & Geometrie-Dimensionen ---
         let sideLimit = 100;
@@ -150,48 +122,15 @@
                 versionInfoEl.innerHTML = `<span>v${VERSION}</span><br><span>${timestamp}</span>`;
             }
 
-            setupControls();
-
             await loadLogoData();
             logos.sort((a, b) => a.year - b.year);
             generateTimelineData();
             onWindowResize(); 
             window.addEventListener('resize', onWindowResize, false);
+            window.addEventListener('wheel', onMouseWheel); // Zurück zur direkten Zuweisung
             window.addEventListener('keydown', handleKeyPress);
             canvas.addEventListener('mousemove', handleMouseMove);
             animate();
-        }
-        
-        // --- NEU: Logik zur Einrichtung der Steuerung (Mausrad oder Neigung) ---
-        function setupControls() {
-            const permissionOverlay = document.getElementById('permission-overlay');
-            const permissionButton = document.getElementById('permission-button');
-
-            // Prüft, ob es sich um ein mobiles Gerät mit Bewegungssensoren handeln könnte
-            if (typeof window.DeviceOrientationEvent !== 'undefined' && typeof window.DeviceOrientationEvent.requestPermission === 'function') {
-                // iOS 13+
-                permissionOverlay.style.display = 'flex';
-                document.getElementById('instruction-text').textContent = 'Neige dein Handy, um durch die Zeit zu reisen';
-                permissionButton.addEventListener('click', () => {
-                    DeviceOrientationEvent.requestPermission().then(response => {
-                        if (response === 'granted') {
-                            window.addEventListener('deviceorientation', handleOrientation);
-                            permissionOverlay.style.display = 'none';
-                        }
-                    }).catch(console.error);
-                });
-            } else if ('DeviceOrientationEvent' in window) {
-                // Android oder ältere iOS-Versionen
-                permissionOverlay.style.display = 'flex';
-                document.getElementById('instruction-text').textContent = 'Neige dein Handy, um durch die Zeit zu reisen';
-                 permissionButton.addEventListener('click', () => {
-                    window.addEventListener('deviceorientation', handleOrientation);
-                    permissionOverlay.style.display = 'none';
-                });
-            } else {
-                // Desktop
-                window.addEventListener('wheel', onMouseWheel);
-            }
         }
         
         // --- Ladefunktion für JSON und SVGs ---
@@ -473,27 +412,6 @@
             const scrollAmount = event.deltaY * SCROLL_SENSITIVITY;
             targetZ += scrollAmount;
             targetZ = Math.max(START_Z, Math.min(END_Z, targetZ));
-        }
-        
-        // NEU: Handler für die Geräteneigung
-        function handleOrientation(event) {
-            if (viewMode === 'grid' || isTransitioning) return;
-            
-            // beta ist die Neigung von vorne nach hinten
-            let beta = event.beta;
-            
-            // Normalisiere den Winkel auf einen konsistenten Bereich (z.B. 0-180)
-            if (beta < 0) beta = 180 + (180 + beta);
-            
-            // Berechne die Neigung relativ zur neutralen Position
-            let tilt = beta - NEUTRAL_BETA;
-            
-            // Map den Tilt auf einen normalisierten Wert (0 bis 1)
-            let tiltRatio = (tilt * TILT_SENSITIVITY + 100) / 200;
-            tiltRatio = Math.max(0, Math.min(1, tiltRatio)); // Auf 0-1 begrenzen
-            
-            // Map den normalisierten Wert auf die Z-Achse
-            targetZ = END_Z + tiltRatio * (START_Z - END_Z);
         }
 
         function onWindowResize() {
