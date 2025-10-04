@@ -1,4 +1,13 @@
 [
+  {
+    "year": 2023,
+    "name": "Staatsgalerie Stuttgart ",
+    "description": "Infos zu Staatsgalerie.",
+    "logoColor": "logos/staga_c.svg",
+    "logoBW": "logos/staga_sw.svg",
+    "relX": 0.6,
+    "relY": 0.4
+  },
  {
     "year": 2023,
     "name": "RED Restaurationszentrum Düsseldorf",
