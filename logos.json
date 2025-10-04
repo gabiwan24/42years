@@ -7,14 +7,14 @@
     "logoColor": "logos/pbb_c.svg",
     "logoBW": "logos/pbb_sw.svg",
     "relX": -0.4,
-    "relY": -0.2
+    "relY": -0.4
   },
   {
     "year": 2020,
     "name": "XL2",
     "description": "Infos zu XL2.",
     "logoColor": "logos/xl2_c.svg",
-    "logoBW": "logos/xl2_bw.svg",
+    "logoBW": "logos/xl2_sw.svg",
     "relX": -0.1,
     "relY": 0.2
   },
