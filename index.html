@@ -96,7 +96,7 @@
         // --- Fallback-Daten ---
         const fallbackLogoData = [
              { "year": 1988, "name": "Fiktives Projekt A", "description": "Platzhalter A", "logoColor": "https://placehold.co/100x100/FF0000/FFFFFF?text=A", "logoBW": "https://placehold.co/100x100/CCCCCC/000000?text=A", "relX": 0.6, "relY": 0.6, "scale": 1.0 },
-             { "year": 1995, "name": "Fiktives Projekt B", "description": "Platzhalter B", "logoColor": "https://placehold.co/100x100/00FF00/FFFFFF?text=B", "logoBW": "https://placehold.co/100x100/CCCCCC/000000?text=B", "relX": -0.6, "relY": 0.4, "scale": 1.2 },
+             { "year": 1995, "name": "Fiktives Projekt B", "description": "Platzhalter B", "logoColor": "https://placehold.co/100x100/00FF00/FFFFFF?text=B", "logoBW": "https://placehold.co/100x100/CCCCCC/000000?text=B", "relX": -0.6, "relY": -0.4, "scale": 1.2 },
         ];
 
         // --- Hilfsfunktionen ---
@@ -127,7 +127,7 @@
             generateTimelineData();
             onWindowResize(); 
             window.addEventListener('resize', onWindowResize, false);
-            window.addEventListener('wheel', onMouseWheel); // Zurück zur direkten Zuweisung
+            window.addEventListener('wheel', onMouseWheel);
             window.addEventListener('keydown', handleKeyPress);
             canvas.addEventListener('mousemove', handleMouseMove);
             animate();
@@ -265,7 +265,7 @@
 
                     if (obj.type === 'lines') {
                         const gradientRatio = Math.min(1, yearDiff / VISIBLE_RANGE_YEARS);
-                        const colorValue = Math.round(255 - gradientRatio * 255); // 255 (weiß) -> 0 (schwarz)
+                        const colorValue = Math.round(255 - gradientRatio * 255);
                         const colorHex = colorValue.toString(16).padStart(2, '0');
                         ctx.strokeStyle = `#${colorHex}${colorHex}${colorHex}`;
                         
@@ -292,7 +292,11 @@
             
             // Logos zeichnen
             logos.forEach(logo => {
-                let tunnelPos = project({ x: logo.relX * sideLimit * 0.9, y: (logo.relY * wallHeight * 0.9) - wallHeight / 2, z: logo.z });
+                // KORREKTUR: Y-Position ist jetzt zentriert um 0
+                const tunnelX = logo.relX * sideLimit * 0.9;
+                const tunnelY = logo.relY * (wallHeight / 2) * 0.9;
+                
+                let tunnelPos = project({ x: tunnelX, y: tunnelY, z: logo.z });
                 if (!tunnelPos) { tunnelPos = { x: canvas.width / 2, y: canvas.height / 2, scale: 0 }; }
 
                 const currentX = lerp(tunnelPos.x, logo.gridX + logo.gridSize / 2, easedProgress);
