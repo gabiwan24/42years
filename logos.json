@@ -1,5 +1,13 @@
 [
-
+ {
+    "year": 2023,
+    "name": "RED Restaurationszentrum Düsseldorf",
+    "description": "Infos zu Red.",
+    "logoColor": "logos/red_c.svg",
+    "logoBW": "logos/red_sw.svg",
+    "relX": -0.6,
+    "relY": -0.4
+  },
    {
     "year": 2009,
     "name": "PBB Deutsche Pfandbriefbank",
