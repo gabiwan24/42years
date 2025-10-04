@@ -6,6 +6,10 @@
     <title>3D Zeitleiste (mit externen Logos)</title>
     <!-- Tailwind CSS (für das UI-Overlay) -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- NEU: Google Font Verlinkung -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
     <style>
         body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Inter', sans-serif; }
         canvas { display: block; background-color: #000; }
@@ -39,7 +43,7 @@
         // --- Globale Variablen für Canvas ---
         const canvas = document.getElementById('timeline-canvas');
         const ctx = canvas.getContext('2d');
-        const VERSION = '1.2.2'; // Versionsnummer zurückgesetzt
+        const VERSION = '1.2.4'; // Versionsnummer
 
         // --- Zeit- und Skalenkonstanten ---
         const MIN_YEAR = 1984;
@@ -112,7 +116,7 @@
             const screenY = canvas.height / 2 - point.y * scale;
             return { x: screenX, y: screenY, scale: scale };
         }
-
+        
         // --- Initialisierung ---
         async function init() {
             document.getElementById('current-year').textContent = VISUAL_MAX_YEAR;
@@ -292,7 +296,6 @@
             
             // Logos zeichnen
             logos.forEach(logo => {
-                // KORREKTUR: Y-Position ist jetzt zentriert um 0
                 const tunnelX = logo.relX * sideLimit * 0.9;
                 const tunnelY = logo.relY * (wallHeight / 2) * 0.9;
                 
