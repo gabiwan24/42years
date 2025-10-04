@@ -85,7 +85,7 @@
         
         // --- Sichtbarkeitskonstanten ---
         const VISIBLE_RANGE_YEARS = 7;
-        const FADE_RANGE_YEARS = 7;
+        const FADE_RANGE_YEARS = 4;
         
         // --- Datenspeicher ---
         const depthLines = [];
@@ -264,9 +264,8 @@
                     if (yearDiff > VISIBLE_RANGE_YEARS + FADE_RANGE_YEARS) return;
 
                     if (obj.type === 'lines') {
-                        // NEU: Farbverlauf für Rechtecke
                         const gradientRatio = Math.min(1, yearDiff / VISIBLE_RANGE_YEARS);
-                        const colorValue = Math.round(255 - gradientRatio * 127); // 255 (weiß) -> 128 (50% grau)
+                        const colorValue = Math.round(255 - gradientRatio * 255); // 255 (weiß) -> 0 (schwarz)
                         const colorHex = colorValue.toString(16).padStart(2, '0');
                         ctx.strokeStyle = `#${colorHex}${colorHex}${colorHex}`;
                         
