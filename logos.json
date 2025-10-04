@@ -1,4 +1,14 @@
 [
+
+    {
+    "year": 2014,
+    "name": "J!NS",
+    "description": "Infos zu J!NS.",
+    "logoColor": "logos/jins_c.svg",
+    "logoBW": "logos/jins_sw.svg",
+    "relX": -0.6,
+    "relY": 0.4
+  },
   {
     "year": 2016,
     "name": "Staatsgalerie Stuttgart ",
