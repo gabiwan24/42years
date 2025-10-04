@@ -1,10 +1,10 @@
 [
   {
     "year": 2004,
-    "name": "GenRide",
-    "description": "Infos zu Genride.",
-    "logoColor": "logos/genride_c.svg",
-    "logoBW": "logos/genride_sw.svg",
+    "name": "Porsche Design",
+    "description": "Infos zu Porsche Design.",
+    "logoColor": "logos/porschedesign_c.svg",
+    "logoBW": "logos/porschedesign_sw.svg",
     "relX": -0.1,
     "relY": 0.2
   },
