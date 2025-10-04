@@ -323,6 +323,10 @@
                 const left = currentX - w / 2;
                 const top = currentY - h / 2;
                 
+                // NEU: Hintergrund für bessere Lesbarkeit zeichnen
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+                ctx.fillRect(left, top, w, h);
+
                 try {
                     ctx.drawImage(img, left, top, w, h);
                 } catch (e) { console.error(`Fehler beim Zeichnen von ${logo.label}`, e); }
