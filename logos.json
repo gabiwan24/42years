@@ -5,8 +5,8 @@
     "description": "Infos zu Genride.",
     "logoColor": "logos/genride_c.svg",
     "logoBW": "logos/genride_sw.svg",
-    "relX": 0.0,
-    "relY": 0.5
+    "relX": -0.1,
+    "relY": 0.2
   },
    {
     "year": 2018,
@@ -14,8 +14,8 @@
     "description": "Infos zu Markant.",
     "logoColor": "logos/markant_c.svg",
     "logoBW": "logos/markant_sw.svg",
-    "relX": 0.0,
-    "relY": 0.5
+    "relX": 0.2,
+    "relY": -0.2
   },
   {
     "year": 2006,
@@ -23,8 +23,8 @@
     "description": "Ganz im Sinne der Unternehmensphilosophie, immer neue Wege zu gehen, kippen wir die Schrift ganz einfach nach links – entgegen dem üblichen Kursiv. Das Ergebnis ist ein radikales Design, das neue Sehgewohnheiten für eine ganze Branche schafft. Die Neigung entspricht dem Winkel des Unterrohrs des Fahrradrahmens.",
     "logoColor": "logos/canyon_c.svg",
     "logoBW": "logos/canyon_sw.svg",
-    "relX": 0.0,
-    "relY": 0.5
+    "relX": 0.2,
+    "relY": 0.1
   },
   {
     "year": 2005,
@@ -32,8 +32,8 @@
     "description": "Eine kurze Beschreibung von Deutsche Rentenversicherung.",
     "logoColor": "logos/deutsche_rentenversicherung_c.svg",
     "logoBW": "logos/deutsche_rentenversicherung_sw.svg",
-    "relX": 0.0,
-    "relY": 0.5
+    "relX": -0.2,
+    "relY": 0.0
   },
   {
     "year": 2009,
@@ -41,8 +41,8 @@
     "description": "Eine kurze Beschreibung der Gründung von Uni Heidelberg.",
     "logoColor": "logos/uni_heidelberg_c.svg",
     "logoBW": "logos/uni_heidelberg_sw.svg",
-    "relX": 0.0,
-    "relY": 0.5
+    "relX": 0.1,
+    "relY": 0.3
   }
 ]
 
