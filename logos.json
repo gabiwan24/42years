@@ -1,4 +1,14 @@
 [
+
+   {
+    "year": 2019,
+    "name": "Doppelmayr",
+    "description": "Infos zu Doppelmayr.",
+    "logoColor": "logos/doppelmayr_c.svg",
+    "logoBW": "logos/doppelmayr_sw.svg",
+    "relX": -0.1,
+    "relY": -0.2
+  },
   {
     "year": 2004,
     "name": "Porsche Design",
