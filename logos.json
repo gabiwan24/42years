@@ -1,4 +1,14 @@
 [
+
+   {
+    "year": 2009,
+    "name": "PBB Deutsche Pfandbriefbank",
+    "description": "Infos zu PBB.",
+    "logoColor": "logos/pbb_c.svg",
+    "logoBW": "logos/pbb_sw.svg",
+    "relX": -0.1,
+    "relY": 0.2
+  },
   {
     "year": 2020,
     "name": "XL2",
