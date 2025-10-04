@@ -1,5 +1,13 @@
 [
-
+  {
+    "year": 2020,
+    "name": "XL2",
+    "description": "Infos zu XL2.",
+    "logoColor": "logos/xl2_c.svg",
+    "logoBW": "logos/xl2_bw.svg",
+    "relX": -0.1,
+    "relY": 0.2
+  },
    {
     "year": 2019,
     "name": "Doppelmayr",
