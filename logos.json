@@ -6,7 +6,7 @@
     "logoColor": "logos/genride_c.svg",
     "logoBW": "logos/genride_sw.svg",
     "relX": 0.0,
-    "relY": 0.0
+    "relY": 0.5
   },
    {
     "year": 2018,
@@ -15,7 +15,7 @@
     "logoColor": "logos/markant_c.svg",
     "logoBW": "logos/markant_sw.svg",
     "relX": 0.0,
-    "relY": 0.0
+    "relY": 0.5
   },
   {
     "year": 2006,
@@ -24,7 +24,7 @@
     "logoColor": "logos/canyon_c.svg",
     "logoBW": "logos/canyon_sw.svg",
     "relX": 0.0,
-    "relY": 0.0
+    "relY": 0.5
   },
   {
     "year": 2005,
@@ -33,7 +33,7 @@
     "logoColor": "logos/deutsche_rentenversicherung_c.svg",
     "logoBW": "logos/deutsche_rentenversicherung_sw.svg",
     "relX": 0.0,
-    "relY": 0.0
+    "relY": 0.5
   },
   {
     "year": 2009,
@@ -42,7 +42,7 @@
     "logoColor": "logos/uni_heidelberg_c.svg",
     "logoBW": "logos/uni_heidelberg_sw.svg",
     "relX": 0.0,
-    "relY": 0.0
+    "relY": 0.5
   }
 ]
 
