@@ -1,5 +1,13 @@
 [
-
+    {
+    "year": 2015,
+    "name": "Stemme",
+    "description": "Infos zu Stemme.",
+    "logoColor": "logos/stemme_c.svg",
+    "logoBW": "logos/stemme_sw.svg",
+    "relX": 0.2,
+    "relY": -0.2
+  },
     {
     "year": 2014,
     "name": "J!NS",
