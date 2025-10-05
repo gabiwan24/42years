@@ -1,5 +1,13 @@
 [
-
+       {
+    "year": 2012,
+    "name": "Giesecke & Devrient",
+    "description": "Infos zu G+D.",
+    "logoColor": "logos/gd_c.svg",
+    "logoBW": "logos/gd_sw.svg",
+    "relX": -0.4,
+    "relY": 0.2
+  },
        {
     "year": 2015,
     "name": "Münchner Leukämielabor",
