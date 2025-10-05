@@ -1,4 +1,14 @@
 [
+          {
+    "year": 2009,
+    "name": "Klöpfer Holzhandel",
+    "description": "Infos zu Klöpfer.",
+    "logoColor": "logos/kloepfer_holzhandel_c.svg",
+    "logoBW": "logos/kloepfer_holzhandel_sw.svg",
+    "relX": -0.4,
+    "relY": 0.2
+  },
+       
        {
     "year": 2012,
     "name": "Giesecke & Devrient",
