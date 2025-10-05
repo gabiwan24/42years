@@ -1,6 +1,15 @@
 [
 
-
+   {
+    "year": 2007,
+    "name": "Von Rosen",
+    "description": "Infos zu Von Rosen.",
+    "logoColor": "logos/vonrosen_c.svg",
+    "logoBW": "logos/vonrosen_sw.svg",
+    "relX": 0.6,
+    "relY": -0.4
+  },
+       
       {
     "year": 2020,
     "name": "ROOF",
