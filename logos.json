@@ -1,4 +1,17 @@
 [
+
+
+      {
+    "year": 2020,
+    "name": "ROOF",
+    "description": "Infos zu ROOF.",
+    "logoColor": "logos/roof_c.svg",
+    "logoBW": "logos/roof_sw.svg",
+    "relX": 0.6,
+    "relY": -0.4
+  },
+       
+          
           {
     "year": 2008,
     "name": "Klöpfer Holzhandel",
