@@ -1,4 +1,14 @@
 [
+
+       {
+    "year": 2015,
+    "name": "Münchner Leukämielabor",
+    "description": "Infos zu MLL.",
+    "logoColor": "logos/mll_c.svg",
+    "logoBW": "logos/mll_sw.svg",
+    "relX": 0.4,
+    "relY": 0.2
+  },
     {
     "year": 2015,
     "name": "Stemme",
