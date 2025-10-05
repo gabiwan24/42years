@@ -1,4 +1,14 @@
 [
+
+    {
+    "year": 2018,
+    "name": "Atruvia",
+    "description": "Infos zu Atruvia.",
+    "logoColor": "logos/atruvia_c.svg",
+    "logoBW": "logos/atruvia_sw.svg",
+    "relX": -0.6,
+    "relY": -0.4
+  },
 {
     "year": 2019,
     "name": "Genoverband",
