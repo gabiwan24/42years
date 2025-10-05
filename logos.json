@@ -1,5 +1,13 @@
 [
-
+{
+    "year": 2019,
+    "name": "Genoverband",
+    "description": "Infos zu Genoverband.",
+    "logoColor": "logos/geno_c.svg",
+    "logoBW": "logos/geno_sw.svg",
+    "relX": 0.6,
+    "relY": -0.4
+  },
    {
     "year": 2007,
     "name": "Von Rosen",
