@@ -1,12 +1,12 @@
 [
           {
-    "year": 2009,
+    "year": 2008,
     "name": "Klöpfer Holzhandel",
     "description": "Infos zu Klöpfer.",
     "logoColor": "logos/kloepfer-holzhandel_c.svg",
     "logoBW": "logos/kloepfer-holzhandel_sw.svg",
-    "relX": -0.4,
-    "relY": 0.2
+    "relX": 0.6,
+    "relY": 0.4
   },
        
        {
