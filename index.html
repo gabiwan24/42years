@@ -43,7 +43,7 @@
         // --- Globale Variablen für Canvas ---
         const canvas = document.getElementById('timeline-canvas');
         const ctx = canvas.getContext('2d');
-        const VERSION = '1.2.4'; // Versionsnummer
+        const VERSION = '1.2.5'; // Versionsnummer
 
         // --- Zeit- und Skalenkonstanten ---
         const MIN_YEAR = 1984;
@@ -181,8 +181,14 @@
                         loadImageFromPath(def.logoColor)
                     ]);
                     const zPos = yearToZ(def.year);
+                    // NEU: Zufälligen Z-Versatz für Logos im selben Jahr
+                    const randomOffset = (Math.random() - 0.5) * Z_SCALE * 0.8; 
+
                     const logoObject = {
-                        type: 'logo', z: zPos, year: def.year, size: 30, 
+                        type: 'logo', 
+                        z: zPos + randomOffset, // Versatz anwenden
+                        year: def.year, 
+                        size: 30, 
                         relX: def.relX, relY: def.relY, label: def.name,
                         description: def.description, imageBW: imageBW, imageColor: imageColor,
                         currentImage: imageBW, scale: def.scale || 1.0 
@@ -323,7 +329,6 @@
                 const left = currentX - w / 2;
                 const top = currentY - h / 2;
                 
-                // NEU: Hintergrund für bessere Lesbarkeit zeichnen
                 ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
                 ctx.fillRect(left, top, w, h);
 
