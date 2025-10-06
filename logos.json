@@ -1,10 +1,10 @@
 [
        {
     "year": 1993,
-    "name": "Prestel Verlag",
-    "description": "Infos zu Prestel Verlag.",
-    "logoColor": "logos/prestel_c.svg",
-    "logoBW": "logos/prestel_sw.svg",
+    "name": "Villa Stuck",
+    "description": "Infos zur Villa Stuck.",
+    "logoColor": "logos/villastuck_c.svg",
+    "logoBW": "logos/villastuck_sw.svg",
     "relX": -0.4,
     "relY": -0.4
   },
