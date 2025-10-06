@@ -72,8 +72,8 @@
     "description": "Infos zu ROOF.",
     "logoColor": "logos/roof_c.svg",
     "logoBW": "logos/roof_sw.svg",
-    "relX": 0.6,
-    "relY": -0.4
+    "relX": -0.6,
+    "relY": -0.7
   },
        
           
