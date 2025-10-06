@@ -43,7 +43,7 @@
         // --- Globale Variablen für Canvas ---
         const canvas = document.getElementById('timeline-canvas');
         const ctx = canvas.getContext('2d');
-        const VERSION = '1.2.6'; // Versionsnummer
+        const VERSION = '1.2.7'; // Versionsnummer
 
         // --- Zeit- und Skalenkonstanten ---
         const MIN_YEAR = 1984;
@@ -156,7 +156,6 @@
                 basePath = ''; 
             }
 
-            // NEU: Logik zum Gruppieren und Z-Versatz anwenden
             const yearGroups = {};
             logoDefinitions.forEach(def => {
                 if (!yearGroups[def.year]) {
@@ -165,13 +164,13 @@
                 yearGroups[def.year].push(def);
             });
 
-            const smallOffset = Z_SCALE * 0.2; // Deutlich kleinerer Versatz
+            const smallOffset = Z_SCALE * 0.1; // Versatz weiter reduziert
 
             Object.values(yearGroups).forEach(group => {
                 if (group.length > 1) {
                     group.forEach((logoDef, index) => {
                         if (index === 0) {
-                            logoDef.zOffset = 0; // Das erste Logo bleibt auf der Hauptachse
+                            logoDef.zOffset = 0;
                         } else {
                             const magnitude = Math.ceil(index / 2);
                             const sign = index % 2 === 1 ? 1 : -1;
@@ -207,11 +206,11 @@
                         loadImageFromPath(def.logoColor)
                     ]);
                     const zPos = yearToZ(def.year);
-                    const zOffset = def.zOffset || 0; // Wende den berechneten Versatz an
+                    const zOffset = def.zOffset || 0;
 
                     const logoObject = {
                         type: 'logo', 
-                        z: zPos + zOffset, // Finale Z-Position mit Versatz
+                        z: zPos + zOffset,
                         year: def.year, 
                         size: 30, 
                         relX: def.relX, relY: def.relY, label: def.name,
