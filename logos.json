@@ -5,8 +5,8 @@
     "description": "Infos zu MüWo.",
     "logoColor": "logos/muewo_c.svg",
     "logoBW": "logos/muewo_sw.svg",
-    "relX": -0.6,
-    "relY": -0.4
+    "relX": 0.1,
+    "relY": 0.4
   },
     {
     "year": 2018,
