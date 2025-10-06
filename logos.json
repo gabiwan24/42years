@@ -1,5 +1,15 @@
 [
     {
+    "year": 2023,
+    "name": "Layher",
+    "description": "Infos zu Layher.",
+    "logoColor": "logos/layher_c.svg",
+    "logoBW": "logos/layher_sw.svg",
+    "relX": 0.1,
+    "relY": 0.4
+  },
+    
+    {
     "year": 2022,
     "name": "Münchner Wohnen",
     "description": "Infos zu MüWo.",
