@@ -43,7 +43,7 @@
         // --- Globale Variablen für Canvas ---
         const canvas = document.getElementById('timeline-canvas');
         const ctx = canvas.getContext('2d');
-        const VERSION = '1.2.7'; // Versionsnummer
+        const VERSION = '1.2.8'; // Versionsnummer
 
         // --- Zeit- und Skalenkonstanten ---
         const MIN_YEAR = 1984;
@@ -63,8 +63,9 @@
         }
 
         // --- Kamera & Projektion ---
-        const START_Z = yearToZ(VISUAL_MAX_YEAR) - 150;
-        const END_Z = yearToZ(MIN_YEAR) - 150;
+        const CAMERA_OFFSET = 300; // Abstand der Kamera zu den Endpunkten
+        const START_Z = yearToZ(VISUAL_MAX_YEAR) - CAMERA_OFFSET;
+        const END_Z = yearToZ(MIN_YEAR) - CAMERA_OFFSET;
         const camera = { x: 0, y: 0, z: START_Z };
         let targetZ = START_Z;
         let focalLength;
