@@ -43,7 +43,7 @@
         // --- Globale Variablen für Canvas ---
         const canvas = document.getElementById('timeline-canvas');
         const ctx = canvas.getContext('2d');
-        const VERSION = '1.2.5'; // Versionsnummer
+        const VERSION = '1.2.6'; // Versionsnummer
 
         // --- Zeit- und Skalenkonstanten ---
         const MIN_YEAR = 1984;
@@ -156,6 +156,32 @@
                 basePath = ''; 
             }
 
+            // NEU: Logik zum Gruppieren und Z-Versatz anwenden
+            const yearGroups = {};
+            logoDefinitions.forEach(def => {
+                if (!yearGroups[def.year]) {
+                    yearGroups[def.year] = [];
+                }
+                yearGroups[def.year].push(def);
+            });
+
+            const smallOffset = Z_SCALE * 0.2; // Deutlich kleinerer Versatz
+
+            Object.values(yearGroups).forEach(group => {
+                if (group.length > 1) {
+                    group.forEach((logoDef, index) => {
+                        if (index === 0) {
+                            logoDef.zOffset = 0; // Das erste Logo bleibt auf der Hauptachse
+                        } else {
+                            const magnitude = Math.ceil(index / 2);
+                            const sign = index % 2 === 1 ? 1 : -1;
+                            logoDef.zOffset = magnitude * sign * smallOffset;
+                        }
+                    });
+                }
+            });
+
+
             const loadImageFromPath = (path) => {
                 return new Promise(async (resolve, reject) => {
                     const cacheBuster = `?v=${new Date().getTime()}`;
@@ -181,12 +207,11 @@
                         loadImageFromPath(def.logoColor)
                     ]);
                     const zPos = yearToZ(def.year);
-                    // NEU: Zufälligen Z-Versatz für Logos im selben Jahr
-                    const randomOffset = (Math.random() - 0.5) * Z_SCALE * 0.8; 
+                    const zOffset = def.zOffset || 0; // Wende den berechneten Versatz an
 
                     const logoObject = {
                         type: 'logo', 
-                        z: zPos + randomOffset, // Versatz anwenden
+                        z: zPos + zOffset, // Finale Z-Position mit Versatz
                         year: def.year, 
                         size: 30, 
                         relX: def.relX, relY: def.relY, label: def.name,
