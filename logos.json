@@ -1,4 +1,16 @@
 [
+
+       {
+    "year": 1990,
+    "name": "Prestel Verlag",
+    "description": "Infos zu Prestel Verlag.",
+    "logoColor": "logos/prestel_c.svg",
+    "logoBW": "logos/prestel_sw.svg",
+    "relX": 0.4,
+    "relY": 0.4
+  },
+    
+    
     {
     "year": 2023,
     "name": "Layher",
