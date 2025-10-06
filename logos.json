@@ -1,4 +1,12 @@
-[
+[       {
+    "year": 2023,
+    "name": "Villa Stuck",
+    "description": "Infos zu Iprona.",
+    "logoColor": "logos/iprona_c.svg",
+    "logoBW": "logos/iprona_sw.svg",
+    "relX": -0.4,
+    "relY": -0.4
+  },
        {
     "year": 1993,
     "name": "Villa Stuck",
