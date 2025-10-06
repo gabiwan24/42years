@@ -191,7 +191,7 @@
     "description": "Infos zu Genride.",
     "logoColor": "logos/genride_c.svg",
     "logoBW": "logos/genride_sw.svg",
-    "relX": -0.1,
+    "relX": 0.5,
     "relY": 0.2
   },
    {
