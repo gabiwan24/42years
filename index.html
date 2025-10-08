@@ -13,14 +13,12 @@
     <style>
         body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Inter', sans-serif; }
         
-        /* KORREKTUR: Canvas immer im Hintergrund */
         #timeline-canvas {
           position: fixed;
           inset: 0;
           z-index: 0;
         }
 
-        /* KORREKTUR: Overlays immer im Vordergrund */
         #ui-overlay,
         #version-info {
           position: fixed;
@@ -56,8 +54,8 @@
         // --- Globale Variablen für Canvas ---
         const canvas = document.getElementById('timeline-canvas');
         const ctx = canvas.getContext('2d');
-        const VERSION = '1.3.3'; // Versionsnummer
-        const BUILD_TIMESTAMP = '08.10.2025, 15:33'; // Hardgecodeter Zeitstempel
+        const VERSION = '1.3.4'; // Versionsnummer
+        const BUILD_TIMESTAMP = '08.10.2025, 19:14'; // Hardgecodeter Zeitstempel
 
         // --- Zeit- und Skalenkonstanten ---
         const MIN_YEAR = 1984;
@@ -126,8 +124,9 @@
             const relativeZ = point.z - camera.z;
             if (relativeZ <= 0.1) return null;
             const scale = focalLength / relativeZ;
-            const screenX = canvas.width / 2 + point.x * scale;
-            const screenY = canvas.height / 2 - point.y * scale;
+            // KORREKTUR: Verwende die logischen CSS-Pixel der Fenstergröße für die Zentrierung
+            const screenX = window.innerWidth / 2 + point.x * scale;
+            const screenY = window.innerHeight / 2 - point.y * scale;
             return { x: screenX, y: screenY, scale: scale };
         }
         
@@ -151,7 +150,7 @@
             animate();
         }
         
-        // --- KORRIGIERTE Ladefunktion für alle Daten ---
+        // --- Ladefunktion für alle Daten ---
         async function loadData() {
             generateTimelineData();
             
@@ -457,7 +456,6 @@
             targetZ = Math.max(START_Z, Math.min(END_Z, targetZ));
         }
 
-        // KORREKTUR: High-DPI-Unterstützung
         function onWindowResize() {
             const dpr = Math.max(1, window.devicePixelRatio || 1);
             canvas.width = Math.floor(window.innerWidth * dpr);
