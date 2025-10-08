@@ -1,119 +1,506 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>3D Zeitleiste (optimiert, externe Logos)</title>
-<!-- Tailwind CSS (UI-Overlay) -->
-<script src="https://cdn.tailwindcss.com"></script>
-<!-- Google Font -->
-<link rel="preconnect" href="https://fonts.googleapis.com" />
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet" />
-<style>
-:root {
---bg: #000;
---fg: #fff;
---muted: #888;
-}
-html, body { height: 100%; }
-body { margin: 0; overflow: hidden; background-color: var(--bg); font-family: 'Inter', sans-serif; }
-/* Canvas bewusst nach hinten legen */
-#timeline-canvas {
-position: fixed;
-inset: 0;
-z-index: 0; /* unter den Overlays */
-display: block;
-background-color: var(--bg);
-}
-/* Overlays auf sichere Ebene */
-#ui-overlay, #version-info {
-position: fixed;
-z-index: 50; /* sicher über dem Canvas */
-}
-</style>
-<script>
-tailwind.config = {
-theme: {
-extend: {
-colors: { 'primary': '#FFFFFF', 'secondary': '#888888' }
-}
-}
-}
-</script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Zeitleiste (mit externen Logos)</title>
+    <!-- Tailwind CSS (für das UI-Overlay) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Font Verlinkung -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Inter', sans-serif; }
+        
+        /* KORREKTUR: Canvas immer im Hintergrund */
+        #timeline-canvas {
+          position: fixed;
+          inset: 0;
+          z-index: 0;
+        }
+
+        /* KORREKTUR: Overlays immer im Vordergrund */
+        #ui-overlay,
+        #version-info {
+          position: fixed;
+          z-index: 50;
+        }
+    </style>
+     <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'primary': '#FFFFFF',
+                        'secondary': '#888888',
+                    }
+                }
+            }
+        }
+    </script>
 </head>
 <body>
-<!-- UI-Overlay für die aktuelle Jahresanzeige -->
-<div id="ui-overlay" class="top-4 left-1/2 -translate-x-1/2 p-4 bg-black/70 rounded-xl shadow-2xl border border-white/30 z-50">
-<h1 class="text-xl font-bold text-white">Aktuelles Jahr: <span id="current-year" class="text-3xl">2025</span></h1>
-<p class="text-xs text-gray-400 mt-1 text-center">Scrollen (Mausrad), Farbe (Leertaste), Raster (Enter)</p>
-</div>
+    <!-- UI-Overlay für die aktuelle Jahresanzeige -->
+    <div id="ui-overlay" class="fixed top-4 left-1/2 transform -translate-x-1/2 p-4 bg-black bg-opacity-70 rounded-xl shadow-2xl border border-white/30">
+        <h1 class="text-xl font-bold text-primary text-white">Aktuelles Jahr: <span id="current-year" class="text-3xl">2025</span></h1>
+        <p class="text-xs text-secondary mt-1 text-center text-gray-400">Scrollen (Mausrad), Farbe (Leertaste), Raster (Enter)</p>
+    </div>
 
+    <!-- Versions- und Zeitstempel-Anzeige -->
+    <div id="version-info" class="fixed top-4 right-4 text-right text-xs text-white/50"></div>
 
-<!-- Versions- und Zeitstempel-Anzeige -->
-<div id="version-info" class="top-4 right-4 text-right text-xs text-white/50 z-50"></div>
+    <canvas id="timeline-canvas"></canvas>
 
+    <script>
+        // --- Globale Variablen für Canvas ---
+        const canvas = document.getElementById('timeline-canvas');
+        const ctx = canvas.getContext('2d');
+        const VERSION = '1.3.3'; // Versionsnummer
+        const BUILD_TIMESTAMP = '08.10.2025, 15:33'; // Hardgecodeter Zeitstempel
 
-<canvas id="timeline-canvas"></canvas>
+        // --- Zeit- und Skalenkonstanten ---
+        const MIN_YEAR = 1984;
+        const VISUAL_MAX_YEAR = new Date().getFullYear();
+        const Z_DISTANCE = 4000;
+        const Z_SCALE = Z_DISTANCE / (VISUAL_MAX_YEAR - MIN_YEAR);
 
+        // --- Hilfsfunktionen für Zeit/Position ---
+        function yearToZ(year) {
+            const clampedYear = Math.max(MIN_YEAR, year);
+            return (VISUAL_MAX_YEAR - clampedYear) * Z_SCALE;
+        }
 
-<script>
-// --- Globale Variablen für Canvas ---
-const canvas = document.getElementById('timeline-canvas');
-const ctx = canvas.getContext('2d');
-const VERSION = '1.4.0'; // neue Versionsnummer
-const BUILD_TIMESTAMP = '08.10.2025, 16:10'; // Beispiel-Zeitstempel
+        function zToYear(z) {
+            const year = VISUAL_MAX_YEAR - (z / Z_SCALE);
+            return Math.max(MIN_YEAR, year);
+        }
 
+        // --- Kamera & Projektion ---
+        const CAMERA_OFFSET = 300;
+        const START_Z = yearToZ(VISUAL_MAX_YEAR) - CAMERA_OFFSET;
+        const END_Z = yearToZ(MIN_YEAR) - CAMERA_OFFSET;
+        const camera = { x: 0, y: 0, z: START_Z };
+        let targetZ = START_Z;
+        let focalLength;
 
-// --- Zeit- und Skalenkonstanten ---
-const MIN_YEAR = 1984;
-const VISUAL_MAX_YEAR = new Date().getFullYear();
-const Z_DISTANCE = 4000;
-const Z_SCALE = Z_DISTANCE / (VISUAL_MAX_YEAR - MIN_YEAR);
+        // --- Statusvariablen ---
+        let isColorMode = false;
+        let mousePos = { x: 0, y: 0 };
+        let hoveredLogo = null;
+        let viewMode = 'tunnel';
+        let transitionProgress = 0;
+        let isTransitioning = false;
+        
+        // --- Responsiveness & Geometrie-Dimensionen ---
+        let sideLimit = 100;
+        let wallHeight = 100;
+        const WALL_DISTANCE = 50; 
 
+        // --- Easing Konstanten ---
+        const SCROLL_SENSITIVITY = 1.0;
+        const EASE_FACTOR = 0.08;
+        const TRANSITION_SPEED = 0.05;
+        
+        // --- Sichtbarkeitskonstanten ---
+        const VISIBLE_RANGE_YEARS = 7;
+        const FADE_RANGE_YEARS = 4;
+        
+        // --- Datenspeicher ---
+        let logos = [];
+        const renderableObjects = [];
+        const loadedLogoInfo = [];
+        
+        // --- Fallback-Daten ---
+        const fallbackLogoData = [
+             { "year": 1988, "name": "Fiktives Projekt A", "description": "Platzhalter A", "logoColor": "https://placehold.co/100x100/FF0000/FFFFFF?text=A", "logoBW": "https://placehold.co/100x100/CCCCCC/000000?text=A", "relX": 0.6, "relY": 0.6, "scale": 1.0 },
+             { "year": 1995, "name": "Fiktives Projekt B", "description": "Platzhalter B", "logoColor": "https://placehold.co/100x100/00FF00/FFFFFF?text=B", "logoBW": "https://placehold.co/100x100/CCCCCC/000000?text=B", "relX": -0.6, "relY": -0.4, "scale": 1.2 },
+        ];
 
-// --- Hilfsfunktionen für Zeit/Position ---
-function yearToZ(year) {
-const clampedYear = Math.max(MIN_YEAR, year);
-return (VISUAL_MAX_YEAR - clampedYear) * Z_SCALE;
-}
-function zToYear(z) {
-const year = VISUAL_MAX_YEAR - (z / Z_SCALE);
-return Math.max(MIN_YEAR, year);
-}
+        // --- Hilfsfunktionen ---
+        const lerp = (a, b, t) => a * (1 - t) + b * t;
+        const easeInOutQuad = (t) => t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
 
+        // --- 3D zu 2D Projektionsfunktion ---
+        function project(point) {
+            const relativeZ = point.z - camera.z;
+            if (relativeZ <= 0.1) return null;
+            const scale = focalLength / relativeZ;
+            const screenX = canvas.width / 2 + point.x * scale;
+            const screenY = canvas.height / 2 - point.y * scale;
+            return { x: screenX, y: screenY, scale: scale };
+        }
+        
+        // --- Initialisierung ---
+        async function init() {
+            document.getElementById('current-year').textContent = VISUAL_MAX_YEAR;
+            const versionInfoEl = document.getElementById('version-info');
+            if (versionInfoEl) {
+                versionInfoEl.innerHTML = `<span>v${VERSION}</span><br><span>${BUILD_TIMESTAMP}</span>`;
+            }
 
-// --- Kamera & Projektion ---
-const CAMERA_OFFSET = 300; // Abstand der Kamera zu den Endpunkten
-const START_Z = yearToZ(VISUAL_MAX_YEAR) - CAMERA_OFFSET;
-const END_Z = yearToZ(MIN_YEAR) - CAMERA_OFFSET;
-const camera = { x: 0, y: 0, z: START_Z };
-let targetZ = START_Z;
-let focalLength;
+            await loadData();
+            logos = renderableObjects.filter(obj => obj.type === 'logo');
+            logos.sort((a, b) => a.year - b.year);
 
+            onWindowResize(); 
+            window.addEventListener('resize', onWindowResize, false);
+            window.addEventListener('wheel', onMouseWheel);
+            window.addEventListener('keydown', handleKeyPress);
+            canvas.addEventListener('mousemove', handleMouseMove);
+            animate();
+        }
+        
+        // --- KORRIGIERTE Ladefunktion für alle Daten ---
+        async function loadData() {
+            generateTimelineData();
+            
+            let logoDefinitions;
+            let basePath = window.location.href.substring(0, window.location.href.lastIndexOf('/') + 1);
+            const jsonUrl = `${basePath}logos.json?v=${new Date().getTime()}`;
 
-// --- Statusvariablen ---
-let isColorMode = false;
-let mousePos = { x: 0, y: 0 };
-let hoveredLogo = null;
-let viewMode = 'tunnel';
-let transitionProgress = 0;
-let isTransitioning = false;
+            try {
+                const response = await fetch(jsonUrl);
+                if (!response.ok) { throw new Error(`HTTP error! status: ${response.status}`); }
+                const text = await response.text();
+                logoDefinitions = JSON.parse(text);
+                if (!logoDefinitions || logoDefinitions.length === 0) { throw new Error('logos.json is empty or invalid.');}
+                console.log('logos.json successfully loaded.');
+            } catch (error) {
+                console.warn(`Failed to load '${jsonUrl}', using fallback data.`, error);
+                logoDefinitions = fallbackLogoData;
+                basePath = ''; 
+            }
 
+            const yearGroups = {};
+            logoDefinitions.forEach(def => {
+                if (!yearGroups[def.year]) { yearGroups[def.year] = []; }
+                yearGroups[def.year].push(def);
+            });
 
-// --- Responsiveness & Geometrie-Dimensionen ---
-let sideLimit = 100;
-let wallHeight = 100;
-const WALL_DISTANCE = 50;
+            const smallOffset = Z_SCALE * 0.1;
 
+            Object.values(yearGroups).forEach(group => {
+                if (group.length > 1) {
+                    group.forEach((logoDef, index) => {
+                        if (index === 0) { logoDef.zOffset = 0; } 
+                        else {
+                            const magnitude = Math.ceil(index / 2);
+                            const sign = index % 2 === 1 ? 1 : -1;
+                            logoDef.zOffset = magnitude * sign * smallOffset;
+                        }
+                    });
+                }
+            });
 
-// --- Easing Konstanten ---
-const SCROLL_SENSITIVITY = 1.0;
-const EASE_FACTOR = 0.08;
-const TRANSITION_SPEED = 0.05;
+            const loadImageFromPath = (path) => {
+                return new Promise(async (resolve, reject) => {
+                    const cacheBuster = `?v=${new Date().getTime()}`;
+                    const fullPath = path.startsWith('http') ? `${path}${path.includes('?') ? '&' : '?'}cb=${Date.now()}` : `${basePath}${path}${cacheBuster}`;
+                    try {
+                        const response = await fetch(fullPath, { mode: 'cors' });
+                        if (!response.ok) throw new Error(`HTTP ${response.status} for ${fullPath}`);
+                        const blob = await response.blob();
+                        const url = URL.createObjectURL(blob);
+                        const img = new Image();
+                        img.crossOrigin = 'anonymous';
+                        img.decoding = 'async';
+                        img.onload = () => { URL.revokeObjectURL(url); resolve(img); };
+                        img.onerror = () => { URL.revokeObjectURL(url); reject(new Error(`Image onerror for Object URL from ${fullPath}`)); };
+                        img.src = url;
+                    } catch (fetchError) {
+                        reject(fetchError);
+                    }
+                });
+            };
 
+            const imagePromises = logoDefinitions.map(async (def) => {
+                try {
+                    const [imageBW, imageColor] = await Promise.all([
+                        loadImageFromPath(def.logoBW),
+                        loadImageFromPath(def.logoColor)
+                    ]);
+                    const zPos = yearToZ(def.year);
+                    const zOffset = def.zOffset || 0;
 
-// --- Sichtbarkeitskonstanten ---
-const VISIBLE_RANGE_YEARS = 7;
-const FADE_RANGE_YEARS = 4;
+                    const logoObject = {
+                        type: 'logo', z: zPos + zOffset, year: def.year, size: 30, 
+                        relX: def.relX, relY: def.relY, label: def.name,
+                        description: def.description, imageBW: imageBW, imageColor: imageColor,
+                        currentImage: imageBW, scale: def.scale || 1.0 
+                    };
+                    renderableObjects.push(logoObject);
+                    const hasDims = imageBW.naturalWidth > 0 && imageBW.naturalHeight > 0;
+                    loadedLogoInfo.push({ name: def.name, hasDims: hasDims });
+                } catch (error) { console.error(`Error processing logo definition for "${def.name}":`, error); }
+            });
+            await Promise.all(imagePromises);
+            console.log('Finished processing all logo definitions.');
+        }
+        
+        function calculateGridPositions() {
+            const cols = 10;
+            const padding = 50;
+            const gridWidth = canvas.width - padding * 2;
+            const margin = 20;
+            const logoCellSize = (gridWidth - (cols - 1) * margin) / cols;
+
+            logos.forEach((logo, index) => {
+                const col = index % cols;
+                const row = Math.floor(index / cols);
+                const x = padding + col * (logoCellSize + margin);
+                const y = padding + row * (logoCellSize + margin);
+                logo.gridX = x;
+                logo.gridY = y;
+                logo.gridSize = logoCellSize;
+            });
+        }
+
+        function generateTimelineData() {
+            const totalVisibleYears = VISUAL_MAX_YEAR - MIN_YEAR;
+            for (let i = 0; i <= totalVisibleYears; i++) {
+                const year = MIN_YEAR + i;
+                const zPos = yearToZ(year);
+                renderableObjects.push({ type: 'lines', z: zPos, year: year });
+                renderableObjects.push({ type: 'text', z: zPos, year: year, text: String(year), baseFontSize: 4, color: '#888888' });
+            }
+        }
+        
+        function updateGeometryPositions() {
+            const requiredHalfHeight = WALL_DISTANCE * Math.tan((Math.PI / 180 * 75) / 2);
+            wallHeight = requiredHalfHeight * 2 * 0.95; 
+            sideLimit = requiredHalfHeight * (canvas.width / canvas.height) * 0.95;
+            renderableObjects.forEach(obj => {
+                if(obj.type === 'lines') {
+                    obj.points = [
+                        { x: -sideLimit, y: wallHeight / 2, z: obj.z }, { x: sideLimit, y: wallHeight / 2, z: obj.z },
+                        { x: -sideLimit, y: -wallHeight / 2, z: obj.z }, { x: sideLimit, y: -wallHeight / 2, z: obj.z },
+                        { x: -sideLimit, y: -wallHeight / 2, z: obj.z }, { x: -sideLimit, y: wallHeight / 2, z: obj.z },
+                        { x: sideLimit, y: -wallHeight / 2, z: obj.z }, { x: sideLimit, y: wallHeight / 2, z: obj.z }
+                    ];
+                } else if (obj.type === 'text') {
+                    obj.x = -sideLimit - 10;
+                    obj.y = 0;
+                }
+            });
+            calculateGridPositions();
+        }
+
+        // --- Haupt-Zeichenfunktion ---
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            const easedProgress = easeInOutQuad(transitionProgress);
+            const cameraYear = zToYear(camera.z);
+            let potentialHoveredLogo = null;
+
+            renderableObjects.sort((a, b) => b.z - a.z);
+
+            renderableObjects.forEach(obj => {
+                let tunnelAlpha = 1.0;
+                if (obj.year && Math.abs(obj.year - cameraYear) > VISIBLE_RANGE_YEARS) {
+                    tunnelAlpha = Math.max(0, 1 - (Math.abs(obj.year - cameraYear) - VISIBLE_RANGE_YEARS) / FADE_RANGE_YEARS);
+                }
+                
+                let finalAlpha = lerp(tunnelAlpha, 1.0, easedProgress);
+                
+                if (obj.type !== 'logo') {
+                    finalAlpha *= (1 - easedProgress);
+                }
+
+                if (finalAlpha < 0.001) return;
+                ctx.globalAlpha = finalAlpha;
+
+                if (obj.type === 'lines') {
+                    const relativeZ = obj.z - camera.z;
+                    const gradientRatio = Math.min(1, Math.abs(obj.year - cameraYear) / VISIBLE_RANGE_YEARS);
+                    const colorValue = Math.round(255 - gradientRatio * 255);
+                    const colorHex = colorValue.toString(16).padStart(2, '0');
+                    ctx.strokeStyle = `#${colorHex}${colorHex}${colorHex}`;
+                    ctx.lineWidth = Math.max(0.25, 1.25 - (relativeZ / Z_DISTANCE) * 1);
+                    ctx.beginPath();
+                    for (let i = 0; i < obj.points.length; i += 2) {
+                        const p1 = project(obj.points[i]);
+                        const p2 = project(obj.points[i+1]);
+                        if (p1 && p2) { ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); }
+                    }
+                    ctx.stroke();
+                } else if (obj.type === 'text') {
+                    const pos = project({ x: obj.x, y: obj.y, z: obj.z });
+                    if (pos) {
+                        ctx.fillStyle = obj.color;
+                        ctx.font = `${obj.baseFontSize * pos.scale}px Inter`;
+                        ctx.textAlign = 'right';
+                        ctx.textBaseline = 'middle';
+                        ctx.fillText(obj.text, pos.x, pos.y);
+                    }
+                } else if (obj.type === 'logo') {
+                    const tunnelX = obj.relX * sideLimit * 0.9;
+                    const tunnelY = obj.relY * (wallHeight / 2) * 0.9;
+                    let tunnelPos = project({ x: tunnelX, y: tunnelY, z: obj.z });
+                    if (!tunnelPos) { tunnelPos = { x: canvas.width / 2, y: canvas.height / 2, scale: 0 }; }
+
+                    const currentX = lerp(tunnelPos.x, obj.gridX + obj.gridSize / 2, easedProgress);
+                    const currentY = lerp(tunnelPos.y, obj.gridY + obj.gridSize / 2, easedProgress);
+                    const currentBaseSize = lerp(obj.size * tunnelPos.scale * obj.scale, obj.gridSize * obj.scale, easedProgress);
+
+                    const img = obj.currentImage;
+                    if (!img) return;
+
+                    let aspect = (img.naturalWidth > 0 && img.naturalHeight > 0) ? (img.naturalWidth / img.naturalHeight) : 1.0;
+                    let w, h;
+                    if (aspect > 1) { w = currentBaseSize; h = currentBaseSize / aspect; } 
+                    else { h = currentBaseSize; w = currentBaseSize * aspect; }
+                    const left = currentX - w / 2;
+                    const top = currentY - h / 2;
+                    
+                    try { ctx.drawImage(img, left, top, w, h); } 
+                    catch (e) { console.error(`Fehler beim Zeichnen von ${obj.label}`, e); }
+                    
+                    if (mousePos.x >= left && mousePos.x <= left + w && mousePos.y >= top && mousePos.y <= top + h) {
+                        potentialHoveredLogo = obj;
+                    }
+                }
+            });
+            
+            hoveredLogo = potentialHoveredLogo;
+            if (hoveredLogo) { drawTooltip(hoveredLogo.description, mousePos.x, mousePos.y); }
+            drawDebugInfo();
+            ctx.globalAlpha = 1.0;
+        }
+
+        function drawTooltip(text, x, y) {
+            const maxWidth = 200;
+            const lineHeight = 18;
+            const padding = 10;
+            ctx.font = '12px Inter';
+            const lines = [];
+            let currentLine = '';
+            const words = text.split(' ');
+            for (const word of words) {
+                const testLine = currentLine + word + ' ';
+                const metrics = ctx.measureText(testLine);
+                if (metrics.width > maxWidth && currentLine !== '') {
+                    lines.push(currentLine.trim());
+                    currentLine = word + ' ';
+                } else {
+                    currentLine = testLine;
+                }
+            }
+            lines.push(currentLine.trim());
+            const tooltipHeight = lines.length * lineHeight + padding * 2;
+            const tooltipWidth = Math.max(...lines.map(line => ctx.measureText(line).width)) + padding * 2;
+            let tooltipX = x + 15;
+            let tooltipY = y + 15;
+            if (tooltipX + tooltipWidth > canvas.width) { tooltipX = x - tooltipWidth - 15; }
+            if (tooltipY + tooltipHeight > canvas.height) { tooltipY = y - tooltipHeight - 15; }
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+            ctx.strokeStyle = '#FFFFFF';
+            ctx.lineWidth = 0.5;
+            ctx.beginPath();
+            ctx.rect(tooltipX, tooltipY, tooltipWidth, tooltipHeight);
+            ctx.fill();
+            ctx.stroke();
+            ctx.fillStyle = '#FFFFFF';
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'top';
+            lines.forEach((line, index) => {
+                ctx.fillText(line, tooltipX + padding, tooltipY + padding + index * lineHeight);
+            });
+        }
+        
+        function drawDebugInfo() {
+            ctx.save();
+            ctx.font = '10px Inter';
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'bottom';
+            const lineHeight = 12;
+            const startX = 10;
+            let startY = canvas.height - 10;
+            const statusText = loadedLogoInfo.length > 0 ? 'Geladene Logos:' : 'Keine Logos geladen.';
+            ctx.fillStyle = 'white';
+            ctx.fillText(statusText, startX, startY - (loadedLogoInfo.length * lineHeight));
+            [...loadedLogoInfo].reverse().forEach((info, index) => {
+                ctx.fillStyle = info.hasDims ? 'lightgreen' : 'yellow';
+                ctx.fillText(`- ${info.name} ${info.hasDims ? '[OK]' : '[NO DIMS]'}`, startX, startY - (index * lineHeight));
+            });
+            ctx.restore();
+        }
+
+        // --- Event Handlers ---
+        function handleKeyPress(event) {
+            if (event.code === 'Space') {
+                event.preventDefault();
+                isColorMode = !isColorMode;
+                logos.forEach(logo => {
+                    logo.currentImage = isColorMode ? logo.imageColor : logo.imageBW;
+                });
+            }
+            if (event.code === 'Enter') {
+                event.preventDefault();
+                if (isTransitioning) return;
+                isTransitioning = true;
+                viewMode = viewMode === 'tunnel' ? 'grid' : 'tunnel';
+                document.getElementById('ui-overlay').style.opacity = viewMode === 'tunnel' ? 1 : 0;
+            }
+        }
+        
+        function handleMouseMove(event) {
+            const rect = canvas.getBoundingClientRect();
+            mousePos.x = event.clientX - rect.left;
+            mousePos.y = event.clientY - rect.top;
+        }
+
+        function onMouseWheel(event) {
+            if (viewMode === 'grid') return;
+            const scrollAmount = event.deltaY * SCROLL_SENSITIVITY;
+            targetZ += scrollAmount;
+            targetZ = Math.max(START_Z, Math.min(END_Z, targetZ));
+        }
+
+        // KORREKTUR: High-DPI-Unterstützung
+        function onWindowResize() {
+            const dpr = Math.max(1, window.devicePixelRatio || 1);
+            canvas.width = Math.floor(window.innerWidth * dpr);
+            canvas.height = Math.floor(window.innerHeight * dpr);
+            canvas.style.width = `${window.innerWidth}px`;
+            canvas.style.height = `${window.innerHeight}px`;
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+            const fov_rad = 75 * Math.PI / 180;
+            focalLength = (window.innerHeight / 2) / Math.tan(fov_rad / 2);
+            updateGeometryPositions();
+        }
+        
+        function updateState() {
+            if (isTransitioning) {
+                const targetProgress = viewMode === 'grid' ? 1 : 0;
+                if (Math.abs(transitionProgress - targetProgress) < 0.001) {
+                    transitionProgress = targetProgress;
+                    isTransitioning = false;
+                } else {
+                    transitionProgress = lerp(transitionProgress, targetProgress, TRANSITION_SPEED);
+                }
+            }
+
+            if (transitionProgress < 1) {
+                camera.z += (targetZ - camera.z) * EASE_FACTOR;
+                const currentYear = zToYear(camera.z);
+                const yearElement = document.getElementById('current-year');
+                if (yearElement) {
+                    const yearToDisplay = Math.round(Math.min(VISUAL_MAX_YEAR, Math.max(MIN_YEAR, currentYear)));
+                    yearElement.textContent = yearToDisplay;
+                }
+            }
+        }
+
+        function animate() {
+            updateState();
+            draw();
+            requestAnimationFrame(animate);
+        }
+
+        init();
+    </script>
+</body>
+</html>
 
