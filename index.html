@@ -43,7 +43,7 @@
         // --- Globale Variablen für Canvas ---
         const canvas = document.getElementById('timeline-canvas');
         const ctx = canvas.getContext('2d');
-        const VERSION = '1.2.8'; // Versionsnummer
+        const VERSION = '1.2.9'; // Versionsnummer
 
         // --- Zeit- und Skalenkonstanten ---
         const MIN_YEAR = 1984;
@@ -159,20 +159,17 @@
 
             const yearGroups = {};
             logoDefinitions.forEach(def => {
-                if (!yearGroups[def.year]) {
-                    yearGroups[def.year] = [];
-                }
+                if (!yearGroups[def.year]) { yearGroups[def.year] = []; }
                 yearGroups[def.year].push(def);
             });
 
-            const smallOffset = Z_SCALE * 0.1; // Versatz weiter reduziert
+            const smallOffset = Z_SCALE * 0.1;
 
             Object.values(yearGroups).forEach(group => {
                 if (group.length > 1) {
                     group.forEach((logoDef, index) => {
-                        if (index === 0) {
-                            logoDef.zOffset = 0;
-                        } else {
+                        if (index === 0) { logoDef.zOffset = 0; } 
+                        else {
                             const magnitude = Math.ceil(index / 2);
                             const sign = index % 2 === 1 ? 1 : -1;
                             logoDef.zOffset = magnitude * sign * smallOffset;
@@ -180,7 +177,6 @@
                     });
                 }
             });
-
 
             const loadImageFromPath = (path) => {
                 return new Promise(async (resolve, reject) => {
@@ -210,10 +206,7 @@
                     const zOffset = def.zOffset || 0;
 
                     const logoObject = {
-                        type: 'logo', 
-                        z: zPos + zOffset,
-                        year: def.year, 
-                        size: 30, 
+                        type: 'logo', z: zPos + zOffset, year: def.year, size: 30, 
                         relX: def.relX, relY: def.relY, label: def.name,
                         description: def.description, imageBW: imageBW, imageColor: imageColor,
                         currentImage: imageBW, scale: def.scale || 1.0 
@@ -246,7 +239,6 @@
             });
         }
 
-        // --- Geometrie-Daten für Tunnel generieren ---
         function generateTimelineData() {
             const totalVisibleYears = VISUAL_MAX_YEAR - MIN_YEAR;
             for (let i = 0; i <= totalVisibleYears; i++) {
@@ -286,90 +278,86 @@
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             const easedProgress = easeInOutQuad(transitionProgress);
             const cameraYear = zToYear(camera.z);
-            hoveredLogo = null;
+            let potentialHoveredLogo = null;
 
-            // Tunnel-Elemente zeichnen
-            ctx.globalAlpha = 1 - easedProgress;
-            if (ctx.globalAlpha > 0) {
-                renderableObjects.forEach(obj => {
-                    if (obj.type === 'logo') return;
-                    const relativeZ = obj.z - camera.z;
-                    if (relativeZ <= 0) return;
-                    const yearDiff = Math.abs(obj.year - cameraYear);
-                    if (yearDiff > VISIBLE_RANGE_YEARS + FADE_RANGE_YEARS) return;
+            // KORREKTUR: Alle Objekte in einer Schleife nach Tiefe sortiert zeichnen
+            renderableObjects.sort((a, b) => b.z - a.z);
 
-                    if (obj.type === 'lines') {
-                        const gradientRatio = Math.min(1, yearDiff / VISIBLE_RANGE_YEARS);
-                        const colorValue = Math.round(255 - gradientRatio * 255);
-                        const colorHex = colorValue.toString(16).padStart(2, '0');
-                        ctx.strokeStyle = `#${colorHex}${colorHex}${colorHex}`;
-                        
-                        ctx.lineWidth = Math.max(0.25, 1.25 - (relativeZ / Z_DISTANCE) * 1);
-                        ctx.beginPath();
-                        for(let i = 0; i < obj.points.length; i += 2) {
-                            const p1 = project(obj.points[i]);
-                            const p2 = project(obj.points[i+1]);
-                            if(p1 && p2) { ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); }
-                        }
-                        ctx.stroke();
-                    } else if (obj.type === 'text') {
-                        const pos = project({ x: obj.x, y: obj.y, z: obj.z });
-                        if (pos) {
-                            ctx.fillStyle = obj.color;
-                            ctx.font = `${obj.baseFontSize * pos.scale}px Inter`;
-                            ctx.textAlign = 'right';
-                            ctx.textBaseline = 'middle';
-                            ctx.fillText(obj.text, pos.x, pos.y);
-                        }
-                    }
-                });
-            }
-            
-            // Logos zeichnen
-            logos.forEach(logo => {
-                const tunnelX = logo.relX * sideLimit * 0.9;
-                const tunnelY = logo.relY * (wallHeight / 2) * 0.9;
-                
-                let tunnelPos = project({ x: tunnelX, y: tunnelY, z: logo.z });
-                if (!tunnelPos) { tunnelPos = { x: canvas.width / 2, y: canvas.height / 2, scale: 0 }; }
-
-                const currentX = lerp(tunnelPos.x, logo.gridX + logo.gridSize / 2, easedProgress);
-                const currentY = lerp(tunnelPos.y, logo.gridY + logo.gridSize / 2, easedProgress);
-                const currentBaseSize = lerp(logo.size * tunnelPos.scale * logo.scale, logo.gridSize * logo.scale, easedProgress);
-
+            renderableObjects.forEach(obj => {
                 let tunnelAlpha = 1.0;
-                if (Math.abs(logo.year - cameraYear) > VISIBLE_RANGE_YEARS) {
-                    tunnelAlpha = Math.max(0, 1 - (Math.abs(logo.year - cameraYear) - VISIBLE_RANGE_YEARS) / FADE_RANGE_YEARS);
+                if (Math.abs(obj.year - cameraYear) > VISIBLE_RANGE_YEARS) {
+                    tunnelAlpha = Math.max(0, 1 - (Math.abs(obj.year - cameraYear) - VISIBLE_RANGE_YEARS) / FADE_RANGE_YEARS);
                 }
                 ctx.globalAlpha = lerp(tunnelAlpha, 1.0, easedProgress);
+
+                if (obj.type !== 'logo') {
+                    ctx.globalAlpha *= (1 - easedProgress);
+                }
+
                 if (ctx.globalAlpha < 0.001) return;
 
-                const img = logo.currentImage;
-                if (!img) return;
+                if (obj.type === 'lines') {
+                    const relativeZ = obj.z - camera.z;
+                    const gradientRatio = Math.min(1, Math.abs(obj.year - cameraYear) / VISIBLE_RANGE_YEARS);
+                    const colorValue = Math.round(255 - gradientRatio * 255);
+                    const colorHex = colorValue.toString(16).padStart(2, '0');
+                    ctx.strokeStyle = `#${colorHex}${colorHex}${colorHex}`;
+                    ctx.lineWidth = Math.max(0.25, 1.25 - (relativeZ / Z_DISTANCE) * 1);
+                    ctx.beginPath();
+                    for(let i = 0; i < obj.points.length; i += 2) {
+                        const p1 = project(obj.points[i]);
+                        const p2 = project(obj.points[i+1]);
+                        if(p1 && p2) { ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); }
+                    }
+                    ctx.stroke();
+                } else if (obj.type === 'text') {
+                    const pos = project({ x: obj.x, y: obj.y, z: obj.z });
+                    if (pos) {
+                        ctx.fillStyle = obj.color;
+                        ctx.font = `${obj.baseFontSize * pos.scale}px Inter`;
+                        ctx.textAlign = 'right';
+                        ctx.textBaseline = 'middle';
+                        ctx.fillText(obj.text, pos.x, pos.y);
+                    }
+                } else if (obj.type === 'logo') {
+                    const tunnelX = obj.relX * sideLimit * 0.9;
+                    const tunnelY = obj.relY * (wallHeight / 2) * 0.9;
+                    let tunnelPos = project({ x: tunnelX, y: tunnelY, z: obj.z });
+                    if (!tunnelPos) { tunnelPos = { x: canvas.width / 2, y: canvas.height / 2, scale: 0 }; }
 
-                let aspect = (img.naturalWidth > 0 && img.naturalHeight > 0) ? (img.naturalWidth / img.naturalHeight) : 1.0;
-                let w, h;
-                if (aspect > 1) { w = currentBaseSize; h = currentBaseSize / aspect; } 
-                else { h = currentBaseSize; w = currentBaseSize * aspect; }
-                const left = currentX - w / 2;
-                const top = currentY - h / 2;
-                
-                ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
-                ctx.fillRect(left, top, w, h);
+                    const currentX = lerp(tunnelPos.x, obj.gridX + obj.gridSize / 2, easedProgress);
+                    const currentY = lerp(tunnelPos.y, obj.gridY + obj.gridSize / 2, easedProgress);
+                    const currentBaseSize = lerp(obj.size * tunnelPos.scale * obj.scale, obj.gridSize * obj.scale, easedProgress);
+                    
+                    const img = obj.currentImage;
+                    if (!img) return;
 
-                try {
-                    ctx.drawImage(img, left, top, w, h);
-                } catch (e) { console.error(`Fehler beim Zeichnen von ${logo.label}`, e); }
-                
-                if (mousePos.x >= left && mousePos.x <= left + w && mousePos.y >= top && mousePos.y <= top + h) {
-                    hoveredLogo = logo;
+                    let aspect = (img.naturalWidth > 0 && img.naturalHeight > 0) ? (img.naturalWidth / img.naturalHeight) : 1.0;
+                    let w, h;
+                    if (aspect > 1) { w = currentBaseSize; h = currentBaseSize / aspect; } 
+                    else { h = currentBaseSize; w = currentBaseSize * aspect; }
+                    const left = currentX - w / 2;
+                    const top = currentY - h / 2;
+                    
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+                    ctx.fillRect(left, top, w, h);
+                    
+                    try {
+                        ctx.drawImage(img, left, top, w, h);
+                    } catch (e) { console.error(`Fehler beim Zeichnen von ${obj.label}`, e); }
+                    
+                    if (mousePos.x >= left && mousePos.x <= left + w && mousePos.y >= top && mousePos.y <= top + h) {
+                        potentialHoveredLogo = obj;
+                    }
                 }
             });
             
+            hoveredLogo = potentialHoveredLogo;
             if (hoveredLogo) { drawTooltip(hoveredLogo.description, mousePos.x, mousePos.y); }
             drawDebugInfo();
             ctx.globalAlpha = 1.0;
         }
+
 
         function drawTooltip(text, x, y) {
             const maxWidth = 200;
