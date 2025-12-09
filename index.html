@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3D Zeitleiste (mit externen Logos)</title>
+    <title>3D Zeitleiste</title>
     <!-- Tailwind CSS (für das UI-Overlay) -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Google Font Verlinkung -->
@@ -23,6 +23,7 @@
         #version-info {
           position: fixed;
           z-index: 50;
+          pointer-events: none; /* Klicks gehen durch */
         }
     </style>
      <script>
@@ -41,8 +42,8 @@
 <body>
     <!-- UI-Overlay für die aktuelle Jahresanzeige -->
     <div id="ui-overlay" class="fixed top-4 left-1/2 transform -translate-x-1/2 p-4 bg-black bg-opacity-70 rounded-xl shadow-2xl border border-white/30">
-        <h1 class="text-xl font-bold text-primary text-white">Aktuelles Jahr: <span id="current-year" class="text-3xl">2025</span></h1>
-        <p class="text-xs text-secondary mt-1 text-center text-gray-400">Scrollen (Mausrad), Farbe (Leertaste), Raster (Enter)</p>
+        <h1 class="text-xl font-bold text-primary text-white text-center">Aktuelles Jahr: <span id="current-year" class="text-3xl">2025</span></h1>
+        <p class="text-xs text-secondary mt-1 text-center text-gray-400">Scrollen (Zeit), Leertaste (Farbe), Enter (Raster)</p>
     </div>
 
     <!-- Versions- und Zeitstempel-Anzeige -->
@@ -54,8 +55,8 @@
         // --- Globale Variablen für Canvas ---
         const canvas = document.getElementById('timeline-canvas');
         const ctx = canvas.getContext('2d');
-        const VERSION = '1.3.4'; // Versionsnummer
-        const BUILD_TIMESTAMP = '08.10.2025, 19:14'; // Hardgecodeter Zeitstempel
+        const VERSION = '1.3.6'; 
+        const BUILD_TIMESTAMP = '09.12.2025, 14:15'; 
 
         // --- Zeit- und Skalenkonstanten ---
         const MIN_YEAR = 1984;
@@ -75,7 +76,7 @@
         }
 
         // --- Kamera & Projektion ---
-        const CAMERA_OFFSET = 300;
+        const CAMERA_OFFSET = 300; 
         const START_Z = yearToZ(VISUAL_MAX_YEAR) - CAMERA_OFFSET;
         const END_Z = yearToZ(MIN_YEAR) - CAMERA_OFFSET;
         const camera = { x: 0, y: 0, z: START_Z };
@@ -89,6 +90,8 @@
         let viewMode = 'tunnel';
         let transitionProgress = 0;
         let isTransitioning = false;
+        let gridScrollY = 0;
+        let gridTotalHeight = 0;
         
         // --- Responsiveness & Geometrie-Dimensionen ---
         let sideLimit = 100;
@@ -109,10 +112,10 @@
         const renderableObjects = [];
         const loadedLogoInfo = [];
         
-        // --- Fallback-Daten ---
+        // --- Fallback-Daten (falls JSON nicht lädt) ---
         const fallbackLogoData = [
-             { "year": 1988, "name": "Fiktives Projekt A", "description": "Platzhalter A", "logoColor": "https://placehold.co/100x100/FF0000/FFFFFF?text=A", "logoBW": "https://placehold.co/100x100/CCCCCC/000000?text=A", "relX": 0.6, "relY": 0.6, "scale": 1.0 },
-             { "year": 1995, "name": "Fiktives Projekt B", "description": "Platzhalter B", "logoColor": "https://placehold.co/100x100/00FF00/FFFFFF?text=B", "logoBW": "https://placehold.co/100x100/CCCCCC/000000?text=B", "relX": -0.6, "relY": -0.4, "scale": 1.2 },
+             { "year": 1988, "name": "Fiktives Projekt A", "description": "Beispiel A", "logoColor": "https://placehold.co/100x100/FF0000/FFFFFF?text=A", "logoBW": "https://placehold.co/100x100/CCCCCC/000000?text=A", "relX": 0.6, "relY": 0.6, "scale": 1.0 },
+             { "year": 1995, "name": "Fiktives Projekt B", "description": "Beispiel B", "logoColor": "https://placehold.co/100x100/00FF00/FFFFFF?text=B", "logoBW": "https://placehold.co/100x100/CCCCCC/000000?text=B", "relX": -0.6, "relY": -0.4, "scale": 1.2 },
         ];
 
         // --- Hilfsfunktionen ---
@@ -124,7 +127,6 @@
             const relativeZ = point.z - camera.z;
             if (relativeZ <= 0.1) return null;
             const scale = focalLength / relativeZ;
-            // KORREKTUR: Verwende die logischen CSS-Pixel der Fenstergröße für die Zentrierung
             const screenX = window.innerWidth / 2 + point.x * scale;
             const screenY = window.innerHeight / 2 - point.y * scale;
             return { x: screenX, y: screenY, scale: scale };
@@ -139,6 +141,7 @@
             }
 
             await loadData();
+            // Logos filtern und sortieren für die Rasteransicht
             logos = renderableObjects.filter(obj => obj.type === 'logo');
             logos.sort((a, b) => a.year - b.year);
 
@@ -155,6 +158,7 @@
             generateTimelineData();
             
             let logoDefinitions;
+            // Bestimme den Basispfad (wichtig für GitHub Pages Unterverzeichnisse)
             let basePath = window.location.href.substring(0, window.location.href.lastIndexOf('/') + 1);
             const jsonUrl = `${basePath}logos.json?v=${new Date().getTime()}`;
 
@@ -179,6 +183,7 @@
 
             const smallOffset = Z_SCALE * 0.1;
 
+            // Z-Versatz für Logos im gleichen Jahr berechnen
             Object.values(yearGroups).forEach(group => {
                 if (group.length > 1) {
                     group.forEach((logoDef, index) => {
@@ -192,18 +197,33 @@
                 }
             });
 
+            // SVG-Loader mit Dimensions-Patch
             const loadImageFromPath = (path) => {
                 return new Promise(async (resolve, reject) => {
                     const cacheBuster = `?v=${new Date().getTime()}`;
                     const fullPath = path.startsWith('http') ? `${path}${path.includes('?') ? '&' : '?'}cb=${Date.now()}` : `${basePath}${path}${cacheBuster}`;
                     try {
-                        const response = await fetch(fullPath, { mode: 'cors' });
+                        const response = await fetch(fullPath);
                         if (!response.ok) throw new Error(`HTTP ${response.status} for ${fullPath}`);
-                        const blob = await response.blob();
+                        
+                        let svgText = await response.text();
+                        
+                        // Patch für fehlende Width/Height in SVGs
+                        if (svgText.includes('<svg') && !svgText.includes('width=') && !svgText.includes('height=')) {
+                            if (svgText.includes('viewBox')) {
+                                // Wenn viewBox da ist, nutzen wir 100% damit er skaliert
+                                svgText = svgText.replace('<svg', '<svg width="100%" height="100%"');
+                            } else {
+                                // Fallback auf feste Größe
+                                svgText = svgText.replace('<svg', '<svg width="500" height="500"');
+                            }
+                        }
+
+                        const blob = new Blob([svgText], { type: 'image/svg+xml' });
                         const url = URL.createObjectURL(blob);
+                        
                         const img = new Image();
                         img.crossOrigin = 'anonymous';
-                        img.decoding = 'async';
                         img.onload = () => { URL.revokeObjectURL(url); resolve(img); };
                         img.onerror = () => { URL.revokeObjectURL(url); reject(new Error(`Image onerror for Object URL from ${fullPath}`)); };
                         img.src = url;
@@ -238,17 +258,28 @@
         }
         
         function calculateGridPositions() {
-            const cols = 10;
-            const padding = 50;
-            const gridWidth = canvas.width - padding * 2;
-            const margin = 20;
-            const logoCellSize = (gridWidth - (cols - 1) * margin) / cols;
+            const padding = 60;
+            const margin = 30;
+            const targetCellSize = 130;
+            const availableWidth = canvas.width - (padding * 2);
+            
+            let cols = Math.floor(availableWidth / (targetCellSize + margin));
+            cols = Math.max(1, cols);
+            
+            const logoCellSize = (availableWidth - (cols - 1) * margin) / cols;
+            const rows = Math.ceil(logos.length / cols);
+            gridTotalHeight = rows * logoCellSize + (rows - 1) * margin + padding * 2;
+
+            let startY = padding;
+            if (gridTotalHeight < canvas.height) {
+                startY = (canvas.height - gridTotalHeight) / 2 + padding;
+            }
 
             logos.forEach((logo, index) => {
                 const col = index % cols;
                 const row = Math.floor(index / cols);
                 const x = padding + col * (logoCellSize + margin);
-                const y = padding + row * (logoCellSize + margin);
+                const y = startY + row * (logoCellSize + margin);
                 logo.gridX = x;
                 logo.gridY = y;
                 logo.gridSize = logoCellSize;
@@ -295,6 +326,7 @@
             renderableObjects.sort((a, b) => b.z - a.z);
 
             renderableObjects.forEach(obj => {
+                // Alpha-Berechnung (Fade-Out in der Tiefe)
                 let tunnelAlpha = 1.0;
                 if (obj.year && Math.abs(obj.year - cameraYear) > VISIBLE_RANGE_YEARS) {
                     tunnelAlpha = Math.max(0, 1 - (Math.abs(obj.year - cameraYear) - VISIBLE_RANGE_YEARS) / FADE_RANGE_YEARS);
@@ -302,6 +334,7 @@
                 
                 let finalAlpha = lerp(tunnelAlpha, 1.0, easedProgress);
                 
+                // Tunnel-Elemente verschwinden im Raster-Modus
                 if (obj.type !== 'logo') {
                     finalAlpha *= (1 - easedProgress);
                 }
@@ -309,8 +342,10 @@
                 if (finalAlpha < 0.001) return;
                 ctx.globalAlpha = finalAlpha;
 
+                // --- Linien zeichnen ---
                 if (obj.type === 'lines') {
                     const relativeZ = obj.z - camera.z;
+                    // Farbverlauf von Weiß nach Schwarz
                     const gradientRatio = Math.min(1, Math.abs(obj.year - cameraYear) / VISIBLE_RANGE_YEARS);
                     const colorValue = Math.round(255 - gradientRatio * 255);
                     const colorHex = colorValue.toString(16).padStart(2, '0');
@@ -323,7 +358,9 @@
                         if (p1 && p2) { ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); }
                     }
                     ctx.stroke();
-                } else if (obj.type === 'text') {
+                } 
+                // --- Text zeichnen ---
+                else if (obj.type === 'text') {
                     const pos = project({ x: obj.x, y: obj.y, z: obj.z });
                     if (pos) {
                         ctx.fillStyle = obj.color;
@@ -332,19 +369,27 @@
                         ctx.textBaseline = 'middle';
                         ctx.fillText(obj.text, pos.x, pos.y);
                     }
-                } else if (obj.type === 'logo') {
+                } 
+                // --- Logos zeichnen ---
+                else if (obj.type === 'logo') {
+                    // Tunnel-Position
                     const tunnelX = obj.relX * sideLimit * 0.9;
                     const tunnelY = obj.relY * (wallHeight / 2) * 0.9;
                     let tunnelPos = project({ x: tunnelX, y: tunnelY, z: obj.z });
                     if (!tunnelPos) { tunnelPos = { x: canvas.width / 2, y: canvas.height / 2, scale: 0 }; }
 
+                    // Grid-Position inkl. Scrolling
+                    const targetGridY = obj.gridY - gridScrollY;
+                    
+                    // Interpolation
                     const currentX = lerp(tunnelPos.x, obj.gridX + obj.gridSize / 2, easedProgress);
-                    const currentY = lerp(tunnelPos.y, obj.gridY + obj.gridSize / 2, easedProgress);
+                    const currentY = lerp(tunnelPos.y, targetGridY + obj.gridSize / 2, easedProgress);
                     const currentBaseSize = lerp(obj.size * tunnelPos.scale * obj.scale, obj.gridSize * obj.scale, easedProgress);
 
                     const img = obj.currentImage;
                     if (!img) return;
 
+                    // Seitenverhältnis
                     let aspect = (img.naturalWidth > 0 && img.naturalHeight > 0) ? (img.naturalWidth / img.naturalHeight) : 1.0;
                     let w, h;
                     if (aspect > 1) { w = currentBaseSize; h = currentBaseSize / aspect; } 
@@ -355,12 +400,14 @@
                     try { ctx.drawImage(img, left, top, w, h); } 
                     catch (e) { console.error(`Fehler beim Zeichnen von ${obj.label}`, e); }
                     
+                    // Hover-Check (nur für Logos, die "vorne" sind)
                     if (mousePos.x >= left && mousePos.x <= left + w && mousePos.y >= top && mousePos.y <= top + h) {
                         potentialHoveredLogo = obj;
                     }
                 }
             });
             
+            // Tooltip und Debug-Infos über alles zeichnen
             hoveredLogo = potentialHoveredLogo;
             if (hoveredLogo) { drawTooltip(hoveredLogo.description, mousePos.x, mousePos.y); }
             drawDebugInfo();
@@ -392,13 +439,17 @@
             let tooltipY = y + 15;
             if (tooltipX + tooltipWidth > canvas.width) { tooltipX = x - tooltipWidth - 15; }
             if (tooltipY + tooltipHeight > canvas.height) { tooltipY = y - tooltipHeight - 15; }
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+            
+            // Tooltip Hintergrund
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.9)';
             ctx.strokeStyle = '#FFFFFF';
             ctx.lineWidth = 0.5;
             ctx.beginPath();
             ctx.rect(tooltipX, tooltipY, tooltipWidth, tooltipHeight);
             ctx.fill();
             ctx.stroke();
+            
+            // Tooltip Text
             ctx.fillStyle = '#FFFFFF';
             ctx.textAlign = 'left';
             ctx.textBaseline = 'top';
@@ -440,6 +491,10 @@
                 isTransitioning = true;
                 viewMode = viewMode === 'tunnel' ? 'grid' : 'tunnel';
                 document.getElementById('ui-overlay').style.opacity = viewMode === 'tunnel' ? 1 : 0;
+                
+                if (viewMode === 'grid') {
+                    gridScrollY = 0;
+                }
             }
         }
         
@@ -450,10 +505,16 @@
         }
 
         function onMouseWheel(event) {
-            if (viewMode === 'grid') return;
             const scrollAmount = event.deltaY * SCROLL_SENSITIVITY;
-            targetZ += scrollAmount;
-            targetZ = Math.max(START_Z, Math.min(END_Z, targetZ));
+
+            if (viewMode === 'grid') {
+                gridScrollY += scrollAmount;
+                const maxScroll = Math.max(0, gridTotalHeight - canvas.height);
+                gridScrollY = Math.max(0, Math.min(maxScroll, gridScrollY));
+            } else {
+                targetZ += scrollAmount;
+                targetZ = Math.max(START_Z, Math.min(END_Z, targetZ));
+            }
         }
 
         function onWindowResize() {
@@ -501,4 +562,3 @@
     </script>
 </body>
 </html>
-
