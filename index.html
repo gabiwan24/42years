@@ -55,8 +55,8 @@
         // --- Globale Variablen für Canvas ---
         const canvas = document.getElementById('timeline-canvas');
         const ctx = canvas.getContext('2d');
-        const VERSION = '1.3.6'; 
-        const BUILD_TIMESTAMP = '09.12.2025, 14:15'; 
+        const VERSION = '1.3.7'; 
+        const BUILD_TIMESTAMP = '09.12.2025, 14:22'; 
 
         // --- Zeit- und Skalenkonstanten ---
         const MIN_YEAR = 1984;
@@ -197,7 +197,7 @@
                 }
             });
 
-            // SVG-Loader mit Dimensions-Patch
+            // SVG-Loader mit Dimensions-Patch und Zentrierung
             const loadImageFromPath = (path) => {
                 return new Promise(async (resolve, reject) => {
                     const cacheBuster = `?v=${new Date().getTime()}`;
@@ -208,14 +208,19 @@
                         
                         let svgText = await response.text();
                         
-                        // Patch für fehlende Width/Height in SVGs
-                        if (svgText.includes('<svg') && !svgText.includes('width=') && !svgText.includes('height=')) {
-                            if (svgText.includes('viewBox')) {
-                                // Wenn viewBox da ist, nutzen wir 100% damit er skaliert
-                                svgText = svgText.replace('<svg', '<svg width="100%" height="100%"');
-                            } else {
-                                // Fallback auf feste Größe
-                                svgText = svgText.replace('<svg', '<svg width="500" height="500"');
+                        // KORREKTUR: Erzwinge Zentrierung des SVG-Inhalts (xMidYMid meet)
+                        // Dies verhindert, dass Logos "unten" oder "oben" hängen, wenn der ViewBox offset hat.
+                        if (svgText.includes('<svg')) {
+                            if (!svgText.includes('preserveAspectRatio')) {
+                                svgText = svgText.replace('<svg', '<svg preserveAspectRatio="xMidYMid meet"');
+                            }
+                            // Patch für fehlende Width/Height
+                            if (!svgText.includes('width=') && !svgText.includes('height=')) {
+                                if (svgText.includes('viewBox')) {
+                                    svgText = svgText.replace('<svg', '<svg width="100%" height="100%"');
+                                } else {
+                                    svgText = svgText.replace('<svg', '<svg width="500" height="500"');
+                                }
                             }
                         }
 
