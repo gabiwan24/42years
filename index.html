@@ -23,7 +23,7 @@
         #version-info {
           position: fixed;
           z-index: 50;
-          pointer-events: none; /* Klicks gehen durch */
+          pointer-events: none;
         }
     </style>
      <script>
@@ -55,8 +55,8 @@
         // --- Globale Variablen für Canvas ---
         const canvas = document.getElementById('timeline-canvas');
         const ctx = canvas.getContext('2d');
-        const VERSION = '1.3.7'; 
-        const BUILD_TIMESTAMP = '09.12.2025, 14:22'; 
+        const VERSION = '1.3.8'; 
+        const BUILD_TIMESTAMP = '09.12.2025, 14:48'; 
 
         // --- Zeit- und Skalenkonstanten ---
         const MIN_YEAR = 1984;
@@ -112,10 +112,10 @@
         const renderableObjects = [];
         const loadedLogoInfo = [];
         
-        // --- Fallback-Daten (falls JSON nicht lädt) ---
+        // --- Fallback-Daten ---
         const fallbackLogoData = [
-             { "year": 1988, "name": "Fiktives Projekt A", "description": "Beispiel A", "logoColor": "https://placehold.co/100x100/FF0000/FFFFFF?text=A", "logoBW": "https://placehold.co/100x100/CCCCCC/000000?text=A", "relX": 0.6, "relY": 0.6, "scale": 1.0 },
-             { "year": 1995, "name": "Fiktives Projekt B", "description": "Beispiel B", "logoColor": "https://placehold.co/100x100/00FF00/FFFFFF?text=B", "logoBW": "https://placehold.co/100x100/CCCCCC/000000?text=B", "relX": -0.6, "relY": -0.4, "scale": 1.2 },
+             { "year": 1988, "name": "Fiktives Projekt A", "description": "Beispiel A", "logoColor": "https://placehold.co/100x100/FF0000/FFFFFF?text=A", "logoBW": "https://placehold.co/100x100/CCCCCC/000000?text=A", "relX": 0.0, "relY": 0.0, "scale": 1.0 },
+             { "year": 1995, "name": "Fiktives Projekt B", "description": "Beispiel B", "logoColor": "https://placehold.co/100x100/00FF00/FFFFFF?text=B", "logoBW": "https://placehold.co/100x100/CCCCCC/000000?text=B", "relX": -0.5, "relY": 0.5, "scale": 1.2 },
         ];
 
         // --- Hilfsfunktionen ---
@@ -128,7 +128,7 @@
             if (relativeZ <= 0.1) return null;
             const scale = focalLength / relativeZ;
             const screenX = window.innerWidth / 2 + point.x * scale;
-            const screenY = window.innerHeight / 2 - point.y * scale;
+            const screenY = window.innerHeight / 2 - point.y * scale; // Y-Achse: Oben ist Minus
             return { x: screenX, y: screenY, scale: scale };
         }
         
@@ -158,7 +158,6 @@
             generateTimelineData();
             
             let logoDefinitions;
-            // Bestimme den Basispfad (wichtig für GitHub Pages Unterverzeichnisse)
             let basePath = window.location.href.substring(0, window.location.href.lastIndexOf('/') + 1);
             const jsonUrl = `${basePath}logos.json?v=${new Date().getTime()}`;
 
@@ -197,7 +196,7 @@
                 }
             });
 
-            // SVG-Loader mit Dimensions-Patch und Zentrierung
+            // Reiner Blob-Loader (Keine Text-Manipulation)
             const loadImageFromPath = (path) => {
                 return new Promise(async (resolve, reject) => {
                     const cacheBuster = `?v=${new Date().getTime()}`;
@@ -205,26 +204,7 @@
                     try {
                         const response = await fetch(fullPath);
                         if (!response.ok) throw new Error(`HTTP ${response.status} for ${fullPath}`);
-                        
-                        let svgText = await response.text();
-                        
-                        // KORREKTUR: Erzwinge Zentrierung des SVG-Inhalts (xMidYMid meet)
-                        // Dies verhindert, dass Logos "unten" oder "oben" hängen, wenn der ViewBox offset hat.
-                        if (svgText.includes('<svg')) {
-                            if (!svgText.includes('preserveAspectRatio')) {
-                                svgText = svgText.replace('<svg', '<svg preserveAspectRatio="xMidYMid meet"');
-                            }
-                            // Patch für fehlende Width/Height
-                            if (!svgText.includes('width=') && !svgText.includes('height=')) {
-                                if (svgText.includes('viewBox')) {
-                                    svgText = svgText.replace('<svg', '<svg width="100%" height="100%"');
-                                } else {
-                                    svgText = svgText.replace('<svg', '<svg width="500" height="500"');
-                                }
-                            }
-                        }
-
-                        const blob = new Blob([svgText], { type: 'image/svg+xml' });
+                        const blob = await response.blob();
                         const url = URL.createObjectURL(blob);
                         
                         const img = new Image();
@@ -254,8 +234,8 @@
                         currentImage: imageBW, scale: def.scale || 1.0 
                     };
                     renderableObjects.push(logoObject);
-                    const hasDims = imageBW.naturalWidth > 0 && imageBW.naturalHeight > 0;
-                    loadedLogoInfo.push({ name: def.name, hasDims: hasDims });
+                    const dims = `${imageBW.naturalWidth}x${imageBW.naturalHeight}`;
+                    loadedLogoInfo.push({ name: def.name, dims: dims });
                 } catch (error) { console.error(`Error processing logo definition for "${def.name}":`, error); }
             });
             await Promise.all(imagePromises);
@@ -331,7 +311,6 @@
             renderableObjects.sort((a, b) => b.z - a.z);
 
             renderableObjects.forEach(obj => {
-                // Alpha-Berechnung (Fade-Out in der Tiefe)
                 let tunnelAlpha = 1.0;
                 if (obj.year && Math.abs(obj.year - cameraYear) > VISIBLE_RANGE_YEARS) {
                     tunnelAlpha = Math.max(0, 1 - (Math.abs(obj.year - cameraYear) - VISIBLE_RANGE_YEARS) / FADE_RANGE_YEARS);
@@ -339,7 +318,6 @@
                 
                 let finalAlpha = lerp(tunnelAlpha, 1.0, easedProgress);
                 
-                // Tunnel-Elemente verschwinden im Raster-Modus
                 if (obj.type !== 'logo') {
                     finalAlpha *= (1 - easedProgress);
                 }
@@ -347,10 +325,8 @@
                 if (finalAlpha < 0.001) return;
                 ctx.globalAlpha = finalAlpha;
 
-                // --- Linien zeichnen ---
                 if (obj.type === 'lines') {
                     const relativeZ = obj.z - camera.z;
-                    // Farbverlauf von Weiß nach Schwarz
                     const gradientRatio = Math.min(1, Math.abs(obj.year - cameraYear) / VISIBLE_RANGE_YEARS);
                     const colorValue = Math.round(255 - gradientRatio * 255);
                     const colorHex = colorValue.toString(16).padStart(2, '0');
@@ -363,9 +339,7 @@
                         if (p1 && p2) { ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); }
                     }
                     ctx.stroke();
-                } 
-                // --- Text zeichnen ---
-                else if (obj.type === 'text') {
+                } else if (obj.type === 'text') {
                     const pos = project({ x: obj.x, y: obj.y, z: obj.z });
                     if (pos) {
                         ctx.fillStyle = obj.color;
@@ -374,45 +348,37 @@
                         ctx.textBaseline = 'middle';
                         ctx.fillText(obj.text, pos.x, pos.y);
                     }
-                } 
-                // --- Logos zeichnen ---
-                else if (obj.type === 'logo') {
-                    // Tunnel-Position
+                } else if (obj.type === 'logo') {
                     const tunnelX = obj.relX * sideLimit * 0.9;
                     const tunnelY = obj.relY * (wallHeight / 2) * 0.9;
                     let tunnelPos = project({ x: tunnelX, y: tunnelY, z: obj.z });
                     if (!tunnelPos) { tunnelPos = { x: canvas.width / 2, y: canvas.height / 2, scale: 0 }; }
 
-                    // Grid-Position inkl. Scrolling
-                    const targetGridY = obj.gridY - gridScrollY;
-                    
-                    // Interpolation
                     const currentX = lerp(tunnelPos.x, obj.gridX + obj.gridSize / 2, easedProgress);
-                    const currentY = lerp(tunnelPos.y, targetGridY + obj.gridSize / 2, easedProgress);
+                    const currentY = lerp(tunnelPos.y, (obj.gridY - gridScrollY) + obj.gridSize / 2, easedProgress);
                     const currentBaseSize = lerp(obj.size * tunnelPos.scale * obj.scale, obj.gridSize * obj.scale, easedProgress);
 
                     const img = obj.currentImage;
                     if (!img) return;
 
-                    // Seitenverhältnis
                     let aspect = (img.naturalWidth > 0 && img.naturalHeight > 0) ? (img.naturalWidth / img.naturalHeight) : 1.0;
                     let w, h;
                     if (aspect > 1) { w = currentBaseSize; h = currentBaseSize / aspect; } 
                     else { h = currentBaseSize; w = currentBaseSize * aspect; }
+                    
+                    // ZENTRIERUNG: Zeichne das Bild exakt um den Mittelpunkt
                     const left = currentX - w / 2;
                     const top = currentY - h / 2;
                     
                     try { ctx.drawImage(img, left, top, w, h); } 
                     catch (e) { console.error(`Fehler beim Zeichnen von ${obj.label}`, e); }
                     
-                    // Hover-Check (nur für Logos, die "vorne" sind)
                     if (mousePos.x >= left && mousePos.x <= left + w && mousePos.y >= top && mousePos.y <= top + h) {
                         potentialHoveredLogo = obj;
                     }
                 }
             });
             
-            // Tooltip und Debug-Infos über alles zeichnen
             hoveredLogo = potentialHoveredLogo;
             if (hoveredLogo) { drawTooltip(hoveredLogo.description, mousePos.x, mousePos.y); }
             drawDebugInfo();
@@ -475,8 +441,9 @@
             ctx.fillStyle = 'white';
             ctx.fillText(statusText, startX, startY - (loadedLogoInfo.length * lineHeight));
             [...loadedLogoInfo].reverse().forEach((info, index) => {
-                ctx.fillStyle = info.hasDims ? 'lightgreen' : 'yellow';
-                ctx.fillText(`- ${info.name} ${info.hasDims ? '[OK]' : '[NO DIMS]'}`, startX, startY - (index * lineHeight));
+                const sizeText = info.dims === "0x0" ? "[FEHLER 0x0]" : `[${info.dims}]`;
+                ctx.fillStyle = info.dims === "0x0" ? 'red' : 'lightgreen';
+                ctx.fillText(`- ${info.name} ${sizeText}`, startX, startY - (index * lineHeight));
             });
             ctx.restore();
         }
