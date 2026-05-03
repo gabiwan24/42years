@@ -19,8 +19,8 @@
           z-index: 0;
         }
 
-        #ui-overlay,
-        #version-info {
+        /* UI Elemente über dem Canvas, aber nicht klickbar */
+        .ui-layer {
           position: fixed;
           z-index: 50;
           pointer-events: none;
@@ -40,14 +40,14 @@
     </script>
 </head>
 <body>
-    <!-- UI-Overlay für die aktuelle Jahresanzeige -->
-    <div id="ui-overlay" class="fixed top-4 left-1/2 transform -translate-x-1/2 p-4 bg-black bg-opacity-70 rounded-xl shadow-2xl border border-white/30">
-        <h1 class="text-xl font-bold text-primary text-white text-center">Aktuelles Jahr: <span id="current-year" class="text-3xl">2025</span></h1>
-        <p class="text-xs text-secondary mt-1 text-center text-gray-400">Scrollen (Zeit), Leertaste (Farbe), Enter (Raster)</p>
+
+    <!-- Steuerungsfunktionen unten links -->
+    <div id="controls-info" class="ui-layer bottom-4 left-4 text-xs text-gray-500 opacity-70">
+        Scrollen (Zeit) &nbsp;&middot;&nbsp; Leertaste (Farbe) &nbsp;&middot;&nbsp; Enter (Raster)
     </div>
 
     <!-- Versions- und Zeitstempel-Anzeige -->
-    <div id="version-info" class="fixed top-4 right-4 text-right text-xs text-white/50"></div>
+    <div id="version-info" class="ui-layer top-4 right-4 text-right text-xs text-white/50"></div>
 
     <canvas id="timeline-canvas"></canvas>
 
@@ -55,8 +55,8 @@
         // --- Globale Variablen für Canvas ---
         const canvas = document.getElementById('timeline-canvas');
         const ctx = canvas.getContext('2d');
-        const VERSION = '1.3.8'; 
-        const BUILD_TIMESTAMP = '09.12.2025, 14:48'; 
+        const VERSION = '1.4.0'; 
+        const BUILD_TIMESTAMP = '04.05.2026, 01:49'; 
 
         // --- Zeit- und Skalenkonstanten ---
         const MIN_YEAR = 1984;
@@ -134,7 +134,6 @@
         
         // --- Initialisierung ---
         async function init() {
-            document.getElementById('current-year').textContent = VISUAL_MAX_YEAR;
             const versionInfoEl = document.getElementById('version-info');
             if (versionInfoEl) {
                 versionInfoEl.innerHTML = `<span>v${VERSION}</span><br><span>${BUILD_TIMESTAMP}</span>`;
@@ -246,7 +245,8 @@
             const padding = 60;
             const margin = 30;
             const targetCellSize = 130;
-            const availableWidth = canvas.width - (padding * 2);
+            // Verwende strikt logische Pixel für das Layout
+            const availableWidth = window.innerWidth - (padding * 2);
             
             let cols = Math.floor(availableWidth / (targetCellSize + margin));
             cols = Math.max(1, cols);
@@ -256,8 +256,8 @@
             gridTotalHeight = rows * logoCellSize + (rows - 1) * margin + padding * 2;
 
             let startY = padding;
-            if (gridTotalHeight < canvas.height) {
-                startY = (canvas.height - gridTotalHeight) / 2 + padding;
+            if (gridTotalHeight < window.innerHeight) {
+                startY = (window.innerHeight - gridTotalHeight) / 2 + padding;
             }
 
             logos.forEach((logo, index) => {
@@ -284,7 +284,7 @@
         function updateGeometryPositions() {
             const requiredHalfHeight = WALL_DISTANCE * Math.tan((Math.PI / 180 * 75) / 2);
             wallHeight = requiredHalfHeight * 2 * 0.95; 
-            sideLimit = requiredHalfHeight * (canvas.width / canvas.height) * 0.95;
+            sideLimit = requiredHalfHeight * (window.innerWidth / window.innerHeight) * 0.95;
             renderableObjects.forEach(obj => {
                 if(obj.type === 'lines') {
                     obj.points = [
@@ -303,7 +303,8 @@
 
         // --- Haupt-Zeichenfunktion ---
         function draw() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            // Mit logischen CSS Pixeln löschen, da setTransform angewandt wurde
+            ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
             const easedProgress = easeInOutQuad(transitionProgress);
             const cameraYear = zToYear(camera.z);
             let potentialHoveredLogo = null;
@@ -352,7 +353,7 @@
                     const tunnelX = obj.relX * sideLimit * 0.9;
                     const tunnelY = obj.relY * (wallHeight / 2) * 0.9;
                     let tunnelPos = project({ x: tunnelX, y: tunnelY, z: obj.z });
-                    if (!tunnelPos) { tunnelPos = { x: canvas.width / 2, y: canvas.height / 2, scale: 0 }; }
+                    if (!tunnelPos) { tunnelPos = { x: window.innerWidth / 2, y: window.innerHeight / 2, scale: 0 }; }
 
                     const currentX = lerp(tunnelPos.x, obj.gridX + obj.gridSize / 2, easedProgress);
                     const currentY = lerp(tunnelPos.y, (obj.gridY - gridScrollY) + obj.gridSize / 2, easedProgress);
@@ -381,7 +382,7 @@
             
             hoveredLogo = potentialHoveredLogo;
             if (hoveredLogo) { drawTooltip(hoveredLogo.description, mousePos.x, mousePos.y); }
-            drawDebugInfo();
+            
             ctx.globalAlpha = 1.0;
         }
 
@@ -408,8 +409,8 @@
             const tooltipWidth = Math.max(...lines.map(line => ctx.measureText(line).width)) + padding * 2;
             let tooltipX = x + 15;
             let tooltipY = y + 15;
-            if (tooltipX + tooltipWidth > canvas.width) { tooltipX = x - tooltipWidth - 15; }
-            if (tooltipY + tooltipHeight > canvas.height) { tooltipY = y - tooltipHeight - 15; }
+            if (tooltipX + tooltipWidth > window.innerWidth) { tooltipX = x - tooltipWidth - 15; }
+            if (tooltipY + tooltipHeight > window.innerHeight) { tooltipY = y - tooltipHeight - 15; }
             
             // Tooltip Hintergrund
             ctx.fillStyle = 'rgba(0, 0, 0, 0.9)';
@@ -428,25 +429,6 @@
                 ctx.fillText(line, tooltipX + padding, tooltipY + padding + index * lineHeight);
             });
         }
-        
-        function drawDebugInfo() {
-            ctx.save();
-            ctx.font = '10px Inter';
-            ctx.textAlign = 'left';
-            ctx.textBaseline = 'bottom';
-            const lineHeight = 12;
-            const startX = 10;
-            let startY = canvas.height - 10;
-            const statusText = loadedLogoInfo.length > 0 ? 'Geladene Logos:' : 'Keine Logos geladen.';
-            ctx.fillStyle = 'white';
-            ctx.fillText(statusText, startX, startY - (loadedLogoInfo.length * lineHeight));
-            [...loadedLogoInfo].reverse().forEach((info, index) => {
-                const sizeText = info.dims === "0x0" ? "[FEHLER 0x0]" : `[${info.dims}]`;
-                ctx.fillStyle = info.dims === "0x0" ? 'red' : 'lightgreen';
-                ctx.fillText(`- ${info.name} ${sizeText}`, startX, startY - (index * lineHeight));
-            });
-            ctx.restore();
-        }
 
         // --- Event Handlers ---
         function handleKeyPress(event) {
@@ -462,7 +444,6 @@
                 if (isTransitioning) return;
                 isTransitioning = true;
                 viewMode = viewMode === 'tunnel' ? 'grid' : 'tunnel';
-                document.getElementById('ui-overlay').style.opacity = viewMode === 'tunnel' ? 1 : 0;
                 
                 if (viewMode === 'grid') {
                     gridScrollY = 0;
@@ -481,7 +462,7 @@
 
             if (viewMode === 'grid') {
                 gridScrollY += scrollAmount;
-                const maxScroll = Math.max(0, gridTotalHeight - canvas.height);
+                const maxScroll = Math.max(0, gridTotalHeight - window.innerHeight);
                 gridScrollY = Math.max(0, Math.min(maxScroll, gridScrollY));
             } else {
                 targetZ += scrollAmount;
@@ -515,12 +496,6 @@
 
             if (transitionProgress < 1) {
                 camera.z += (targetZ - camera.z) * EASE_FACTOR;
-                const currentYear = zToYear(camera.z);
-                const yearElement = document.getElementById('current-year');
-                if (yearElement) {
-                    const yearToDisplay = Math.round(Math.min(VISUAL_MAX_YEAR, Math.max(MIN_YEAR, currentYear)));
-                    yearElement.textContent = yearToDisplay;
-                }
             }
         }
 
